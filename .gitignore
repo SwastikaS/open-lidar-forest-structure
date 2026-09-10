@@ -47,3 +47,24 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# macOS
+.DS_Store
+
+# Large LiDAR point-cloud files
+*.las
+*.laz
+*.copc.laz
+*.e57
+*.ply
+*.pcd
+
+# Raw and processed datasets
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Large raster outputs
+outputs/rasters/*
+!outputs/rasters/.gitkeep
