@@ -1,0 +1,2 @@
+"tree_id","species","estimated_dbh_cm","measured_dbh_cm","qsm_dbh_cm","estimation_error_cm","estimation_error_percent","circle_rmse_mm","circumference_completeness_percent","original_points","retained_points"
+"WL12","Fagus sylvatica",44.3391621034205,43.5879105,44.35005,0.751251603420489,1.72353204088663,10.3089815605179,100,528,522
