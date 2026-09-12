@@ -6,8 +6,8 @@ Sys.setenv(RGL_USE_NULL = "TRUE")
 options(rgl.useNULL = TRUE)
 
 # Load data
-las <- readLAS("data/raw/Megaplot.laz")
-chm <- rast("outputs/rasters/chm_1m.tif")
+las <- readLAS("data/raw/airborne/Megaplot.laz")
+chm <- rast("outputs/airborne/rasters/chm_1m.tif")
 
 # Smooth the CHM
 chm_smooth <- focal(
@@ -79,7 +79,7 @@ dir.create("outputs/vectors", showWarnings = FALSE)
 
 st_write(
   crowns,
-  "outputs/vectors/tree_crowns.gpkg",
+  "outputs/airborne/vectors/tree_crowns.gpkg",
   delete_dsn = TRUE,
   quiet = TRUE
 )
@@ -88,7 +88,7 @@ crown_table <- st_drop_geometry(crowns)
 
 write.csv(
   crown_table,
-  "outputs/tables/tree_crown_metrics.csv",
+  "outputs/airborne/tables/tree_crown_metrics.csv",
   row.names = FALSE
 )
 
@@ -127,19 +127,19 @@ print(crown_summary)
 # Rewrite outputs with the additional fields
 st_write(
   crowns,
-  "outputs/vectors/tree_crowns.gpkg",
+  "outputs/airborne/vectors/tree_crowns.gpkg",
   delete_dsn = TRUE,
   quiet = TRUE
 )
 
 write.csv(
   st_drop_geometry(crowns),
-  "outputs/tables/tree_crown_metrics.csv",
+  "outputs/airborne/tables/tree_crown_metrics.csv",
   row.names = FALSE
 )
 
 write.csv(
   crown_summary,
-  "outputs/tables/crown_structure_summary.csv",
+  "outputs/airborne/tables/crown_structure_summary.csv",
   row.names = FALSE
 )

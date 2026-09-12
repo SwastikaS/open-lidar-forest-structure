@@ -95,7 +95,7 @@ plot_tls_projections <- function(points) {
 
 # Save a GitHub-ready figure
 png(
-  "outputs/figures/tls/WL12_TLS_projections.png",
+  "outputs/tls/figures/WL12_TLS_projections.png",
   width = 2400,
   height = 800,
   res = 150

@@ -183,7 +183,7 @@ plot_dbh_fit <- function() {
 plot_dbh_fit()
 
 png(
-  "outputs/figures/tls/WL12_DBH_circle_fit.png",
+  "outputs/tls/figures/WL12_DBH_circle_fit.png",
   width = 1400,
   height = 1400,
   res = 180
@@ -194,7 +194,7 @@ dev.off()
 
 write.csv(
   dbh_results,
-  "outputs/tables/tls/WL12_DBH_results.csv",
+  "outputs/tls/tables/WL12_DBH_results.csv",
   row.names = FALSE
 )
 

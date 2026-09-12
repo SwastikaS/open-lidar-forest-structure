@@ -17,7 +17,7 @@ theme_project <- theme_minimal(base_size = 12) +
   )
 
 # 1. Point-cloud overview ------------------------------------------------------
-las <- readLAS("data/raw/Megaplot.laz")
+las <- readLAS("data/raw/airborne/Megaplot.laz")
 point_data <- as.data.frame(las@data)[, c("X", "Y", "Z")]
 
 set.seed(42)
@@ -37,12 +37,12 @@ p_cloud <- ggplot(point_data, aes(X, Y, colour = Z)) +
   theme_project
 
 ggsave(
-  "outputs/figures/01_point_cloud_overview.png",
+  "outputs/airborne/figures/01_point_cloud_overview.png",
   p_cloud, width = 12, height = 7, dpi = 180
 )
 
 # 2. Canopy metrics ------------------------------------------------------------
-metric_table <- read.csv("outputs/tables/biomass_predictors_20m.csv")
+metric_table <- read.csv("outputs/airborne/tables/biomass_predictors_20m.csv")
 
 metric_long <- rbind(
   transform(metric_table[, c("x", "y")], metric = "Mean height", value = metric_table$mean_height_m),
@@ -61,13 +61,13 @@ p_metrics <- ggplot(metric_long, aes(x, y, fill = value)) +
   theme_project
 
 ggsave(
-  "outputs/figures/02_canopy_metrics.png",
+  "outputs/airborne/figures/02_canopy_metrics.png",
   p_metrics, width = 12, height = 7, dpi = 180
 )
 
 # 3. Treetops and segmented crowns --------------------------------------------
-crowns <- st_read("outputs/vectors/tree_crowns.gpkg", quiet = TRUE)
-treetops <- st_read("outputs/vectors/detected_treetops.gpkg", quiet = TRUE)
+crowns <- st_read("outputs/airborne/vectors/tree_crowns.gpkg", quiet = TRUE)
+treetops <- st_read("outputs/airborne/vectors/detected_treetops.gpkg", quiet = TRUE)
 
 p_crowns <- ggplot() +
   geom_sf(data = crowns, aes(fill = tree_height_m), colour = "white", linewidth = 0.12) +
@@ -81,7 +81,7 @@ p_crowns <- ggplot() +
   theme(axis.title = element_blank())
 
 ggsave(
-  "outputs/figures/03_treetops_and_crowns.png",
+  "outputs/airborne/figures/03_treetops_and_crowns.png",
   p_crowns, width = 12, height = 7, dpi = 180
 )
 
@@ -106,7 +106,7 @@ p_predictors <- ggplot(predictor_long, aes(x, y, fill = value)) +
   theme_project
 
 ggsave(
-  "outputs/figures/04_structural_predictors.png",
+  "outputs/airborne/figures/04_structural_predictors.png",
   p_predictors, width = 12, height = 8, dpi = 180
 )
 
@@ -140,7 +140,7 @@ p_social <- ggplot() +
   )
 
 ggsave(
-  "outputs/figures/social_preview.png",
+  "outputs/airborne/figures/social_preview.png",
   p_social, width = 12, height = 6.3, dpi = 100,
   bg = "#0d171d"
 )

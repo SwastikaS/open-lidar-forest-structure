@@ -3,7 +3,7 @@ library(terra)
 library(sf)
 
 # Load the canopy height model
-chm <- rast("outputs/rasters/chm_1m.tif")
+chm <- rast("outputs/airborne/rasters/chm_1m.tif")
 
 # Smooth local irregularities before detecting canopy peaks
 chm_smooth <- focal(
@@ -44,14 +44,14 @@ dir.create("outputs/vectors", showWarnings = FALSE)
 
 st_write(
   treetops,
-  "outputs/vectors/detected_treetops.gpkg",
+  "outputs/airborne/vectors/detected_treetops.gpkg",
   delete_dsn = TRUE,
   quiet = TRUE
 )
 
 write.csv(
   st_drop_geometry(treetops),
-  "outputs/tables/detected_treetops.csv",
+  "outputs/airborne/tables/detected_treetops.csv",
   row.names = FALSE
 )
 
@@ -80,7 +80,7 @@ print(detection_summary)
 
 write.csv(
   detection_summary,
-  "outputs/tables/treetop_sensitivity.csv",
+  "outputs/airborne/tables/treetop_sensitivity.csv",
   row.names = FALSE
 )
 

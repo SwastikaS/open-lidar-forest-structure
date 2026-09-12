@@ -6,7 +6,7 @@ Sys.setenv(RGL_USE_NULL = "TRUE")
 options(rgl.useNULL = TRUE)
 
 # Read the height-normalised point cloud
-las <- readLAS("data/raw/Megaplot.laz")
+las <- readLAS("data/raw/airborne/Megaplot.laz")
 
 # Whole-site canopy metrics
 site_metrics <- cloud_metrics(
@@ -44,13 +44,13 @@ plot(canopy_metrics_20m)
 # Save outputs
 writeRaster(
   canopy_metrics_20m,
-  "outputs/rasters/canopy_metrics_20m.tif",
+  "outputs/airborne/rasters/canopy_metrics_20m.tif",
   overwrite = TRUE
 )
 
 write.csv(
   as.data.frame(site_metrics),
-  "outputs/tables/site_canopy_metrics.csv",
+  "outputs/airborne/tables/site_canopy_metrics.csv",
   row.names = FALSE
 )
 
@@ -93,6 +93,6 @@ par(mfrow = c(1, 1))
 
 writeRaster(
   chm_1m_filled,
-  "outputs/rasters/chm_1m.tif",
+  "outputs/airborne/rasters/chm_1m.tif",
   overwrite = TRUE
 )

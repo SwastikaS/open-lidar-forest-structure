@@ -16,7 +16,7 @@ if (source_file == "") {
 }
 
 # Copy it into the local raw-data folder
-destination <- "data/raw/Megaplot.laz"
+destination <- "data/raw/airborne/Megaplot.laz"
 
 if (!file.exists(destination)) {
   file.copy(source_file, destination)
@@ -50,7 +50,6 @@ print(table(las$NumberOfReturns))
 
 # Run lidR's integrity checks
 #las_check(las)
-source("scripts/01_inspect_point_cloud.R")
 
 table(las$Classification, useNA = "ifany")
 table(las$ReturnNumber)

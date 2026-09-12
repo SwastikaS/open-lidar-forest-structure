@@ -8,7 +8,7 @@ points <- as.data.frame(tls_tree@data)[, c("X", "Y", "Z")]
 points$height_m <- points$Z - min(points$Z)
 
 tracking <- read.csv(
-  "outputs/tables/tls/WL12_tracked_stem_centres.csv"
+  "outputs/tls/tables/WL12_tracked_stem_centres.csv"
 )
 
 # Retain the vertical range covered by stem tracking
@@ -130,13 +130,13 @@ draw_stem_profile()
 
 # Save the figure
 dir.create(
-  "outputs/figures/tls",
+  "outputs/tls/figures",
   recursive = TRUE,
   showWarnings = FALSE
 )
 
 png(
-  "outputs/figures/tls/WL12_lower_stem_profile.png",
+  "outputs/tls/figures/WL12_lower_stem_profile.png",
   width = 1800,
   height = 900,
   res = 160

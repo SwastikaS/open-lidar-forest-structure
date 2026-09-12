@@ -1,83 +1,116 @@
 # Open LiDAR Forest Structure
 
-Open-source R workflows for extracting forest structural information from airborne and terrestrial LiDAR point clouds.
+Open-source R workflows for extracting forest and tree structure from airborne and terrestrial LiDAR point clouds.
 
-## Project overview
+![Project overview](outputs/airborne/figures/social_preview.png)
 
-This repository contains two connected workflows.
+## About the project
+
+This repository brings two complementary LiDAR workflows into one organised project:
+
+| Module | Purpose | Documentation |
+|---|---|---|
+| Airborne LiDAR | Maps canopy structure, detects treetops and delineates crowns across a forest area | [Airborne workflow](docs/airborne_workflow.md) |
+| Terrestrial LiDAR | Measures DBH, height, taper and lower-stem structure from individual-tree point clouds | [TLS workflow](docs/tls_workflow.md) |
+
+The project currently serves as a documented and reproducible prototype. The longer-term aim is to develop a tool that can process multiple tree point clouds automatically.
+
+## Example outputs
 
 ### Airborne LiDAR
 
-The airborne workflow:
-
-- inspects and summarises LAS/LAZ point clouds;
-- calculates canopy-height and return-density metrics;
-- generates a 1 m canopy height model;
-- detects treetops using a local-maximum filter;
-- delineates individual crowns;
-- derives crown and grid-level structural predictors.
-
-The outputs are structural indicators relevant to biomass modelling. They are not direct biomass estimates because no field-calibrated biomass model is applied.
+![Detected treetops and crowns](outputs/airborne/figures/03_treetops_and_crowns.png)
 
 ### Terrestrial LiDAR
 
-The TLS workflow processes already-isolated individual-tree point clouds to estimate:
+![TLS stem structure](outputs/tls/figures/WL12_lower_stem_profile.png)
 
-- total tree height;
-- diameter at breast height (DBH);
-- basal area;
-- stem diameter at successive heights;
-- lower-stem taper;
-- stem displacement and apparent lean;
-- circle-fit and tracking quality indicators.
+Additional figures, tables and spatial files are available in the [outputs directory](outputs/README.md).
 
-The current prototype was validated on tree WL12, a *Fagus sylvatica* point cloud containing approximately 1.42 million points.
+## Repository structure
 
-| TLS measurement | Result |
-|---|---:|
-| Estimated height | 25.599 m |
-| Estimated DBH | 44.339 cm |
-| Reference DBH | 43.588 cm |
-| DBH error | 0.751 cm |
-| Basal area | 0.154 m² |
-| Diameter at 6 m | 38.483 cm |
-| Lower-stem taper | 1.246 cm m⁻¹ |
-| Apparent lower-stem lean | 4.276° |
-| Mean absolute taper error | 0.517 cm |
+```text
+open-lidar-forest-structure/
+├── data/
+│   ├── raw/
+│   │   ├── airborne/
+│   │   └── tls/
+│   ├── processed/
+│   └── reference/
+├── scripts/
+│   ├── 00_setup.R
+│   ├── airborne/
+│   └── tls/
+├── outputs/
+│   ├── airborne/
+│   │   ├── figures/
+│   │   ├── tables/
+│   │   ├── vectors/
+│   │   ├── rasters/
+│   │   └── models/
+│   └── tls/
+│       ├── figures/
+│       ├── tables/
+│       ├── vectors/
+│       ├── rasters/
+│       └── models/
+└── docs/
+    ├── airborne_workflow.md
+    └── tls_workflow.md
+```
 
-![WL12 lower-stem reconstruction](outputs/figures/tls/WL12_lower_stem_profile.png)
+## Getting started
 
-## Current status
+Clone the repository and open the RStudio project.
 
-- Airborne demonstration workflow: complete
-- Single-tree TLS workflow: complete and validated for WL12
-- Reusable multi-tree TLS function: under development
-- Batch validation across species: planned
-- Graphical user interface: planned
-- Full QSM reconstruction: possible future extension
+Install the required R packages:
 
-The TLS method currently uses successive robust circle fits. Its tracking tolerances and quality thresholds are prototype parameters and must be validated across additional trees before operational use.
+```r
+source("scripts/00_setup.R")
+```
+
+The numbered scripts should be run from the project root.
+
+### Airborne module
+
+```r
+source("scripts/airborne/01_inspect_point_cloud.R")
+```
+
+Continue with the remaining scripts in `scripts/airborne/` in numerical order.
+
+### TLS module
+
+```r
+source("scripts/tls/01_inspect_tls_tree.R")
+```
+
+Continue with the remaining scripts in `scripts/tls/` in numerical order.
+
+Instructions for each script are provided in:
+
+- [Airborne scripts](scripts/airborne/README.md)
+- [TLS scripts](scripts/tls/README.md)
 
 ## Data
 
-Airborne testing uses the `Megaplot.laz` example supplied with `lidR`.
+The airborne example uses `Megaplot.laz`, distributed with the R package `lidR`.
 
-TLS testing uses:
+The terrestrial example uses an individual-tree point cloud from:
 
-Bornand, A. (2023). *Individual tree TLS point clouds for tree volume estimation*. EnviDat.  
-https://doi.org/10.16904/envidat.403
+> Bornand, A. (2023). *Individual tree TLS point clouds for tree volume estimation*. EnviDat.
+> https://doi.org/10.16904/envidat.403
 
-Large LAS/LAZ files are excluded from GitHub. Downloaded point clouds should be stored under `data/raw/`.
+Large raw point clouds and generated raster files are excluded from GitHub. See the module documentation for data preparation and processing details.
 
-## Key references
+## Project status
 
-- Roussel et al. (2020). `lidR`: An R package for analysis of airborne laser scanning data. https://doi.org/10.1016/j.rse.2020.112061
-- Dalponte and Coomes (2016). Tree-centric mapping of forest carbon density. https://doi.org/10.1111/2041-210X.12575
-- Liang et al. (2014). Automated stem curve measurement using terrestrial laser scanning. https://doi.org/10.1109/TGRS.2013.2253783
-- Terryn et al. (2023). Analysing individual 3D tree structure using the R package ITSMe. https://doi.org/10.1111/2041-210X.14026
-- Raumonen et al. (2013). Fast automatic precision tree models from terrestrial laser scanner data. https://doi.org/10.3390/rs5020491
+The airborne workflow is complete as a demonstration of canopy and crown-structure extraction.
+
+The TLS workflow is currently a validated single-tree prototype. The next stage is batch processing and evaluation across trees of different species and sizes.
+
+The outputs should be treated as structural measurements and experimental results. Biomass estimation requires suitable reference observations and independent model validation.
 
 ## Licence
 
-MIT Licenseect will address stem reconstruction, DBH and
-individual-tree architecture without conflating the two acquisition systems.
+This project is available under the MIT License.

@@ -47,7 +47,7 @@ plot(
 
 # Save the DBH cross-section
 png(
-  "outputs/figures/tls/WL12_DBH_slice_raw.png",
+  "outputs/tls/figures/WL12_DBH_slice_raw.png",
   width = 1200,
   height = 1200,
   res = 180

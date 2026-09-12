@@ -226,7 +226,7 @@ legend(
 
 write.csv(
   taper_results,
-  "outputs/tables/tls/WL12_stem_taper.csv",
+  "outputs/tls/tables/WL12_stem_taper.csv",
   row.names = FALSE
 )
 
@@ -362,13 +362,13 @@ print(stem_structure_summary)
 
 write.csv(
   stem_structure_summary,
-  "outputs/tables/tls/WL12_stem_structure_summary.csv",
+  "outputs/tls/tables/WL12_stem_structure_summary.csv",
   row.names = FALSE
 )
 
 write.csv(
   tracking_results,
-  "outputs/tables/tls/WL12_tracked_stem_centres.csv",
+  "outputs/tls/tables/WL12_tracked_stem_centres.csv",
   row.names = FALSE
 )
 cat("Accepted tracking heights:", nrow(tracking_results), "\n")

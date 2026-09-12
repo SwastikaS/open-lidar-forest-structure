@@ -4,7 +4,7 @@ library(terra)
 Sys.setenv(RGL_USE_NULL = "TRUE")
 options(rgl.useNULL = TRUE)
 
-las <- readLAS("data/raw/Megaplot.laz")
+las <- readLAS("data/raw/airborne/Megaplot.laz")
 
 if (is.empty(las)) {
   stop("The point cloud could not be loaded.")
@@ -53,7 +53,7 @@ plot(
 # Save the multiband predictor raster
 writeRaster(
   biomass_predictors_20m,
-  "outputs/rasters/biomass_predictors_20m.tif",
+  "outputs/airborne/rasters/biomass_predictors_20m.tif",
   overwrite = TRUE
 )
 
@@ -66,7 +66,7 @@ predictor_table <- as.data.frame(
 
 write.csv(
   predictor_table,
-  "outputs/tables/biomass_predictors_20m.csv",
+  "outputs/airborne/tables/biomass_predictors_20m.csv",
   row.names = FALSE
 )
 
