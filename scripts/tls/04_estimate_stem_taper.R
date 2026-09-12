@@ -9,38 +9,38 @@ points <- as.data.frame(tls_tree@data)[, c("X", "Y", "Z")]
 points$height_m <- points$Z - min(points$Z)
 
 fit_circle_rlm <- function(d) {
-  
+
   origin_x <- median(d$X)
   origin_y <- median(d$Y)
-  
+
   d$x_local <- d$X - origin_x
   d$y_local <- d$Y - origin_y
-  
+
   model <- MASS::rlm(
     I(-(x_local^2 + y_local^2)) ~ x_local + y_local,
     data = d,
     maxit = 200
   )
-  
+
   b <- coef(model)
-  
+
   cx_local <- -b["x_local"] / 2
   cy_local <- -b["y_local"] / 2
-  
+
   radius <- sqrt(
     cx_local^2 +
       cy_local^2 -
       b["(Intercept)"]
   )
-  
+
   centre_x <- origin_x + cx_local
   centre_y <- origin_y + cy_local
-  
+
   radial_residual <- sqrt(
     (d$X - centre_x)^2 +
       (d$Y - centre_y)^2
   ) - radius
-  
+
   data.frame(
     centre_x = unname(centre_x),
     centre_y = unname(centre_y),
@@ -81,17 +81,17 @@ tracking_results <- current_fit
 tracking_heights <- seq(1.4, 6, by = 0.1)
 
 for (height in tracking_heights) {
-  
+
   height_slice <- points[
     points$height_m >= height - 0.05 &
       points$height_m <= height + 0.05,
   ]
-  
+
   distance_from_previous_centre <- sqrt(
     (height_slice$X - current_fit$centre_x)^2 +
       (height_slice$Y - current_fit$centre_y)^2
   )
-  
+
   # Retain points close to the preceding stem circumference
   stem_candidates <- height_slice[
     abs(
@@ -99,26 +99,26 @@ for (height in tracking_heights) {
         current_fit$radius_m
     ) <= 0.08,
   ]
-  
+
   if (nrow(stem_candidates) < 30) {
     warning(
       paste("Insufficient stem points at", height, "m")
     )
     next
   }
-  
+
   new_fit <- fit_circle_rlm(stem_candidates)
-  
+
   # Reject implausible jumps caused by branches
   centre_shift <- sqrt(
     (new_fit$centre_x - current_fit$centre_x)^2 +
       (new_fit$centre_y - current_fit$centre_y)^2
   )
-  
+
   radius_change <- abs(
     new_fit$radius_m - current_fit$radius_m
   )
-  
+
   if (
     centre_shift > 0.12 ||
     radius_change > 0.04 ||
@@ -129,14 +129,14 @@ for (height in tracking_heights) {
     )
     next
   }
-  
+
   new_fit$height_m <- height
-  
+
   tracking_results <- rbind(
     tracking_results,
     new_fit
   )
-  
+
   current_fit <- new_fit
 }
 

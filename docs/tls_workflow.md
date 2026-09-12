@@ -159,6 +159,62 @@ The processing scripts are stored under:
 
 - `scripts/tls/`
 
+## Batch processing and validation
+
+The prototype was applied to 59 individual-tree TLS point clouds. Tree height was calculated from the vertical extent of each point cloud. DBH was estimated by locating the lower stem and tracking fitted stem circles upwards in 0.1 m steps until breast height at 1.3 m. When tracking failed, a direct circle fit was accepted only if it passed additional quality checks.
+
+The DBH estimates were assigned one of three outcomes:
+
+- `acceptable`: the estimate passed the automatic quality checks;
+- `inspect`: an estimate was produced but should be reviewed;
+- `failed`: the workflow did not return a DBH estimate.
+
+### Tree-height results
+
+All 59 trees were processed successfully for height. Comparison with the reference measurements produced:
+
+- mean absolute error: 0.217 m;
+- root mean square error: 0.467 m;
+- mean error: −0.216 m.
+
+The negative mean error indicates a small overall tendency to underestimate tree height. Most estimates were close to their reference values, although a few trees had larger errors.
+
+### DBH results
+
+Of the 59 trees:
+
+- 53 trees (89.8%) produced DBH estimates;
+- 38 trees (64.4%) passed the automatic quality checks;
+- 15 trees (25.4%) were marked for inspection;
+- 6 trees (10.2%) failed without returning an unreliable value.
+
+Among the 38 quality-approved estimates:
+
+- mean error: 0.34 cm;
+- mean absolute error: 0.52 cm;
+- root mean square error: 0.78 cm;
+- 89.5% were within 1 cm of the reference DBH;
+- 92.1% were within 2 cm;
+- 100% were within 5 cm.
+
+The estimates marked for inspection had a mean absolute error of 4.47 cm and an RMSE of 10.51 cm. Two large errors, WL29 and WL06, were correctly placed in the inspection category. This demonstrates that the quality-control stage is necessary and that unfiltered batch estimates should not be treated as equally reliable.
+
+![TLS DBH batch validation](../outputs/tls/figures/tls_dbh_batch_validation.png)
+
+### Interpretation and limitations
+
+These results show that the prototype can automate height and DBH extraction across multiple isolated-tree point clouds while separating reliable estimates from questionable cases. The quality-approved results are promising for this dataset, but they do not constitute independent external validation.
+
+The current workflow assumes that:
+
+- each input file contains one isolated tree;
+- the point cloud includes the tree base;
+- coordinates and elevations are expressed in metres;
+- enough stem-surface points are available near breast height;
+- low branches do not completely obscure the main stem.
+
+The stem-tracking rules and quality thresholds are prototype settings developed for these data. They may require adjustment for other scanners, tree species, forest conditions and point-cloud densities. Trees marked `inspect` should be reviewed visually, while failed trees require improved stem isolation or an alternative fitting method.
+
 ## References
 
 Bornand, A. (2023). *Individual tree TLS point clouds for tree volume estimation*. EnviDat.

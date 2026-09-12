@@ -1,0 +1,22 @@
+"tree_id","species","quality_flag","method_used","reference_dbh_cm","estimated_dbh_cm","error_cm","absolute_error_cm","circle_rmse_mm","circumference_completeness_percent","error_message"
+"WL29","Quercus spp.","inspect","base-to-DBH tracking",72.6246721,111.611020298592,38.9863481985921,38.9863481985921,26.4901402200122,80.5555555555556,NA
+"WL06","Picea abies","inspect","base-to-DBH tracking",67.826388,77.8329122987956,10.0065242987956,10.0065242987956,23.130100440874,100,NA
+"WL05","Picea abies","inspect","base-to-DBH tracking",60.7912025,64.0342866491177,3.24308414911766,3.24308414911766,22.2416259216869,83.3333333333333,NA
+"WL28","Fraxinus excelsior","inspect","base-to-DBH tracking",51.8342924,54.9467362361331,3.11244383613314,3.11244383613314,26.9846196380047,100,NA
+"WL08","Picea abies","inspect","base-to-DBH tracking",31.1725665,33.6006605108387,2.42809401083874,2.42809401083874,36.4762618443637,100,NA
+"AD05","Sorbus aria","inspect","base-to-DBH tracking",33.7008339,31.8934159685131,-1.80741793148691,1.80741793148691,21.1301699280809,66.6666666666667,NA
+"WL01","Picea abies","inspect","base-to-DBH tracking",57.9660029,59.6821224138571,1.71611951385714,1.71611951385714,24.1966350221581,100,NA
+"AD04","Acer pseudoplatanus","inspect","base-to-DBH tracking",33.567038,31.8934159685131,-1.67362203148691,1.67362203148691,21.1301699280809,66.6666666666667,NA
+"WL04","Picea abies","inspect","base-to-DBH tracking",25.4611696,26.4994320907409,1.03826249074092,1.03826249074092,21.5716493234793,86.1111111111111,NA
+"WL13","Fagus sylvatica","inspect","base-to-DBH tracking",41.7892507,42.7743490319845,0.985098331984538,0.985098331984538,23.1198096078239,100,NA
+"WL22","Fraxinus excelsior","inspect","base-to-DBH tracking",62.5681629,61.8212646907673,-0.746898209232711,0.746898209232711,23.2769452703807,100,NA
+"WL30","Betula pendula","inspect","base-to-DBH tracking",46.9620379,47.4230054635041,0.460967563504092,0.460967563504092,31.670560705572,100,NA
+"WL26","Picea abies","inspect","base-to-DBH tracking",58.5943985,58.9826083284464,0.388209828446421,0.388209828446421,27.5770032251446,100,NA
+"WL11","Acer pseudoplatanus","inspect","base-to-DBH tracking",42.1268342,42.4630988673926,0.336264667392548,0.336264667392548,25.1630302664138,100,NA
+"WL32","Betula pendula","inspect","base-to-DBH tracking",42.6552559,42.5220768662593,-0.13317903374066,0.13317903374066,22.4753785260431,58.3333333333333,NA
+"WL15","Fagus sylvatica","failed",NA,52.1980783,NA,NA,NA,NA,NA,"Stem tracking failed and the direct fit did not pass quality control."
+"WL16","Fagus sylvatica","failed",NA,45.8658455,NA,NA,NA,NA,NA,"Stem tracking failed and the direct fit did not pass quality control."
+"WL17","Fagus sylvatica","failed",NA,44.4643153,NA,NA,NA,NA,NA,"Stem tracking failed and the direct fit did not pass quality control."
+"WL19","Fagus sylvatica","failed",NA,50.4970793,NA,NA,NA,NA,NA,"Stem tracking failed and the direct fit did not pass quality control."
+"WL33","Carpinus betulus","failed",NA,48.9364064,NA,NA,NA,NA,NA,"Insufficient points in the DBH slice."
+"AD02","Fraxinus excelsior","failed",NA,53.0481507,NA,NA,NA,NA,NA,"Stem tracking failed and the direct fit did not pass quality control."

@@ -145,7 +145,7 @@ plot_dbh_fit <- function() {
       " cm"
     )
   )
-  
+
   points(
     clean_slice$X,
     clean_slice$Y,
@@ -153,14 +153,14 @@ plot_dbh_fit <- function() {
     cex = 0.45,
     col = adjustcolor("steelblue4", alpha.f = 0.5)
   )
-  
+
   lines(
     circle_x,
     circle_y,
     col = "red3",
     lwd = 2
   )
-  
+
   points(
     centre_x,
     centre_y,
@@ -169,7 +169,7 @@ plot_dbh_fit <- function() {
     cex = 1.3,
     lwd = 2
   )
-  
+
   legend(
     "topright",
     legend = c("Removed/outlying points", "Retained stem", "Fitted circle"),

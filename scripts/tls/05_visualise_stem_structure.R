@@ -55,9 +55,9 @@ stem_surface <- lower_points[
 cat("Points used in stem visualisation:", nrow(stem_surface), "\n")
 
 draw_stem_profile <- function() {
-  
+
   par(mfrow = c(1, 2))
-  
+
   plot(
     stem_surface$X,
     stem_surface$height_m,
@@ -68,28 +68,28 @@ draw_stem_profile <- function() {
     ylab = "Height above base (m)",
     main = "X–height stem profile"
   )
-  
+
   lines(
     tracking$centre_x,
     tracking$height_m,
     col = "blue",
     lwd = 2
   )
-  
+
   lines(
     tracking$centre_x - tracking$radius_m,
     tracking$height_m,
     col = "red",
     lwd = 2
   )
-  
+
   lines(
     tracking$centre_x + tracking$radius_m,
     tracking$height_m,
     col = "red",
     lwd = 2
   )
-  
+
   plot(
     stem_surface$Y,
     stem_surface$height_m,
@@ -100,28 +100,28 @@ draw_stem_profile <- function() {
     ylab = "Height above base (m)",
     main = "Y–height stem profile"
   )
-  
+
   lines(
     tracking$centre_y,
     tracking$height_m,
     col = "blue",
     lwd = 2
   )
-  
+
   lines(
     tracking$centre_y - tracking$radius_m,
     tracking$height_m,
     col = "red",
     lwd = 2
   )
-  
+
   lines(
     tracking$centre_y + tracking$radius_m,
     tracking$height_m,
     col = "red",
     lwd = 2
   )
-  
+
   par(mfrow = c(1, 1))
 }
 

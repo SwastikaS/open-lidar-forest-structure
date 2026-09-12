@@ -53,7 +53,7 @@ point_colour <- adjustcolor("darkgreen", alpha.f = 0.25)
 
 plot_tls_projections <- function(points) {
   par(mfrow = c(1, 3), mar = c(4, 4, 3, 1))
-  
+
   plot(
     points$X,
     points$Y,
@@ -65,7 +65,7 @@ plot_tls_projections <- function(points) {
     ylab = "Y (m)",
     main = "Top view (XY)"
   )
-  
+
   plot(
     points$X,
     points$Z,
@@ -77,7 +77,7 @@ plot_tls_projections <- function(points) {
     ylab = "Z (m)",
     main = "Side view (XZ)"
   )
-  
+
   plot(
     points$Y,
     points$Z,
@@ -89,7 +89,7 @@ plot_tls_projections <- function(points) {
     ylab = "Z (m)",
     main = "Side view (YZ)"
   )
-  
+
   par(mfrow = c(1, 1))
 }
 

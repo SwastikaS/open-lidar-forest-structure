@@ -1,0 +1,7 @@
+"tree_id","species","method_used","reference_dbh_cm","estimated_dbh_cm","error_cm","absolute_error_cm","circle_rmse_mm","circumference_completeness_percent","original_slice_points","retained_points","removed_points","accepted_tracking_heights","processing_status","error_message","quality_flag"
+"WL01","Picea abies","base-to-DBH tracking",57.9660029,59.6821224138571,1.71611951385714,1.71611951385714,24.1966350221581,100,1269,1041,228,11,"success",NA,"inspect"
+"WL20","Fraxinus excelsior","base-to-DBH tracking",54.812663,55.2695107280284,0.456847728028364,0.456847728028364,19.5750718337211,75,549,490,59,11,"success",NA,"acceptable"
+"WL12","Fagus sylvatica","direct-fit fallback",43.5879105,44.3391621034205,0.751251603420506,0.751251603420506,10.3089815605178,100,528,522,6,NA,"success",NA,"acceptable"
+"AD04","Acer pseudoplatanus","base-to-DBH tracking",33.567038,31.8934159685131,-1.67362203148691,1.67362203148691,21.1301699280809,66.6666666666667,298,276,22,11,"success",NA,"inspect"
+"AD06","Larix decidua","base-to-DBH tracking",43.6195909,43.5808654542631,-0.0387254457369224,0.0387254457369224,6.51320530766318,77.7777777777778,355,355,0,11,"success",NA,"acceptable"
+"AD13","Fagus sylvatica","base-to-DBH tracking",57.8585128,58.5607367014399,0.70222390143995,0.70222390143995,15.1479900588051,100,5896,606,5290,11,"success",NA,"acceptable"
