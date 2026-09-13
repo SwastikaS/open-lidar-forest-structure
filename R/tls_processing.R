@@ -628,3 +628,251 @@ process_tls_batch <- function(file_paths, display_names = basename(file_paths),
   row.names(batch_results) <- NULL
   batch_results
 }
+
+# Lower-stem taper ---------------------------------------------------------
+
+estimate_stem_taper <- function(
+    file_path,
+    measurement_heights = c(1.3, 2, 4, 6),
+    tracking_step_m = 0.1,
+    slice_half_width_m = 0.05,
+    radial_tolerance_m = 0.08
+) {
+
+  measurement_heights <- sort(unique(measurement_heights))
+
+  if (
+    length(measurement_heights) == 0 ||
+    any(!is.finite(measurement_heights)) ||
+    any(measurement_heights < 1.3)
+  ) {
+    stop("Measurement heights must be finite and at least 1.3 m.")
+  }
+
+  tls_tree <- lidR::readLAS(
+    file_path,
+    select = "xyz"
+  )
+
+  if (lidR::is.empty(tls_tree)) {
+    stop("The point cloud is empty.")
+  }
+
+  points <- as.data.frame(tls_tree@data)[
+    ,
+    c("X", "Y", "Z")
+  ]
+
+  tree_base_z <- min(points$Z, na.rm = TRUE)
+  points$height_above_base_m <- points$Z - tree_base_z
+
+  dbh_fit <- estimate_tree_dbh(file_path)
+  dbh_fit$height_m <- 1.3
+  dbh_fit$tracking_status <- "accepted"
+
+  tracking_columns <- c(
+    "centre_x",
+    "centre_y",
+    "radius_m",
+    "estimated_dbh_cm",
+    "circle_rmse_mm",
+    "circumference_completeness_percent",
+    "retained_points",
+    "height_m",
+    "tracking_status"
+  )
+
+  tracking_results <- dbh_fit[, tracking_columns]
+  current_fit <- tracking_results
+
+  maximum_height <- max(measurement_heights)
+  tracking_heights <- seq(
+    1.3 + tracking_step_m,
+    maximum_height,
+    by = tracking_step_m
+  )
+
+  for (height in tracking_heights) {
+
+    height_slice <- points[
+      points$height_above_base_m >= height - slice_half_width_m &
+        points$height_above_base_m <= height + slice_half_width_m,
+    ]
+
+    if (nrow(height_slice) < 30) {
+      next
+    }
+
+    distance_from_previous_centre <- sqrt(
+      (height_slice$X - current_fit$centre_x)^2 +
+        (height_slice$Y - current_fit$centre_y)^2
+    )
+
+    stem_candidates <- height_slice[
+      abs(
+        distance_from_previous_centre - current_fit$radius_m
+      ) <= radial_tolerance_m,
+    ]
+
+    if (nrow(stem_candidates) < 30) {
+      next
+    }
+
+    new_fit <- tryCatch(
+      fit_circle_rlm(stem_candidates),
+      error = function(e) NULL
+    )
+
+    if (is.null(new_fit)) {
+      next
+    }
+
+    centre_shift <- sqrt(
+      (new_fit$centre_x - current_fit$centre_x)^2 +
+        (new_fit$centre_y - current_fit$centre_y)^2
+    )
+
+    radius_change <- abs(
+      new_fit$radius_m - current_fit$radius_m
+    )
+
+    plausible_fit <-
+      centre_shift <= 0.12 &&
+      radius_change <= 0.05 &&
+      new_fit$radius_m >= 0.025 &&
+      new_fit$radius_m <= 0.75
+
+    if (!plausible_fit) {
+      next
+    }
+
+    new_fit$height_m <- round(height, 2)
+    new_fit$tracking_status <- "accepted"
+    new_fit <- new_fit[, tracking_columns]
+
+    tracking_results <- rbind(
+      tracking_results,
+      new_fit
+    )
+
+    current_fit <- new_fit
+  }
+
+  target_results <- lapply(
+    measurement_heights,
+    function(target_height) {
+
+      matching_row <- which(
+        abs(tracking_results$height_m - target_height) < 0.001
+      )
+
+      if (length(matching_row) == 0) {
+        return(data.frame(
+          height_m = target_height,
+          centre_x = NA_real_,
+          centre_y = NA_real_,
+          radius_m = NA_real_,
+          estimated_diameter_cm = NA_real_,
+          points_used = NA_integer_,
+          circle_rmse_mm = NA_real_,
+          circumference_completeness_percent = NA_real_,
+          quality_flag = "failed",
+          stringsAsFactors = FALSE
+        ))
+      }
+
+      fit <- tracking_results[matching_row[1], ]
+
+      quality_flag <- ifelse(
+        fit$circle_rmse_mm <= 20 &&
+          fit$circumference_completeness_percent >= 70 &&
+          fit$retained_points >= 100,
+        "acceptable",
+        "inspect"
+      )
+
+      data.frame(
+        height_m = target_height,
+        centre_x = fit$centre_x,
+        centre_y = fit$centre_y,
+        radius_m = fit$radius_m,
+        estimated_diameter_cm = fit$radius_m * 200,
+        points_used = fit$retained_points,
+        circle_rmse_mm = fit$circle_rmse_mm,
+        circumference_completeness_percent =
+          fit$circumference_completeness_percent,
+        quality_flag = quality_flag,
+        stringsAsFactors = FALSE
+      )
+    }
+  )
+
+  taper_table <- do.call(rbind, target_results)
+  row.names(taper_table) <- NULL
+
+  valid_rows <- is.finite(taper_table$estimated_diameter_cm)
+  valid_taper <- taper_table[valid_rows, ]
+
+  if (nrow(valid_taper) >= 2) {
+    taper_model <- lm(
+      estimated_diameter_cm ~ height_m,
+      data = valid_taper
+    )
+
+    linear_taper_cm_per_m <-
+      -unname(coef(taper_model)["height_m"])
+
+    first_row <- valid_taper[1, ]
+    last_row <- valid_taper[nrow(valid_taper), ]
+
+    mean_taper_cm_per_m <-
+      (first_row$estimated_diameter_cm -
+        last_row$estimated_diameter_cm) /
+      (last_row$height_m - first_row$height_m)
+
+    stem_displacement_m <- sqrt(
+      (last_row$centre_x - first_row$centre_x)^2 +
+        (last_row$centre_y - first_row$centre_y)^2
+    )
+
+    measured_vertical_span_m <-
+      last_row$height_m - first_row$height_m
+
+    lower_stem_lean_degrees <-
+      atan2(stem_displacement_m, measured_vertical_span_m) *
+      180 / pi
+  } else {
+    linear_taper_cm_per_m <- NA_real_
+    mean_taper_cm_per_m <- NA_real_
+    stem_displacement_m <- NA_real_
+    lower_stem_lean_degrees <- NA_real_
+    measured_vertical_span_m <- NA_real_
+  }
+
+  summary <- data.frame(
+    file_name = basename(file_path),
+    requested_measurements = length(measurement_heights),
+    successful_measurements = sum(valid_rows),
+    acceptable_measurements = sum(
+      taper_table$quality_flag == "acceptable"
+    ),
+    measurements_requiring_inspection = sum(
+      taper_table$quality_flag == "inspect"
+    ),
+    failed_measurements = sum(
+      taper_table$quality_flag == "failed"
+    ),
+    mean_taper_cm_per_m = mean_taper_cm_per_m,
+    linear_taper_cm_per_m = linear_taper_cm_per_m,
+    lower_stem_displacement_m = stem_displacement_m,
+    measured_vertical_span_m = measured_vertical_span_m,
+    lower_stem_lean_degrees = lower_stem_lean_degrees,
+    stringsAsFactors = FALSE
+  )
+
+  list(
+    taper_table = taper_table,
+    tracking_results = tracking_results,
+    summary = summary
+  )
+}
