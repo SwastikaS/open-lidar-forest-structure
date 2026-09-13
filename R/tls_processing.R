@@ -598,3 +598,33 @@ process_tls_tree_visual <- function(
     }
   )
 }
+
+# Batch processing ---------------------------------------------------------
+
+process_tls_batch <- function(file_paths, display_names = basename(file_paths),
+                              progress_callback = NULL) {
+
+  if (length(file_paths) == 0) {
+    stop("No TLS files were supplied.")
+  }
+
+  if (length(display_names) != length(file_paths)) {
+    stop("File paths and display names must have the same length.")
+  }
+
+  results <- vector("list", length(file_paths))
+
+  for (i in seq_along(file_paths)) {
+    if (is.function(progress_callback)) {
+      progress_callback(i, length(file_paths), display_names[i])
+    }
+
+    result <- process_tls_tree(file_paths[i])
+    result$file_name <- display_names[i]
+    results[[i]] <- result
+  }
+
+  batch_results <- do.call(rbind, results)
+  row.names(batch_results) <- NULL
+  batch_results
+}
