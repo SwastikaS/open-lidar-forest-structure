@@ -2,35 +2,57 @@
 
 Open-source R workflows for extracting forest and tree structure from airborne and terrestrial LiDAR point clouds.
 
-![Project overview](outputs/airborne/figures/social_preview.png)
-
 ## About the project
 
-This repository brings two complementary LiDAR workflows into one organised project:
+This repository contains two complementary LiDAR workflows:
 
 | Module | Purpose | Documentation |
 |---|---|---|
 | Airborne LiDAR | Maps canopy structure, detects treetops and delineates crowns across a forest area | [Airborne workflow](docs/airborne_workflow.md) |
-| Terrestrial LiDAR | Measures DBH, height, taper and lower-stem structure from individual-tree point clouds | [TLS workflow](docs/tls_workflow.md) |
+| Terrestrial LiDAR | Measures height, DBH, basal area, taper and lower-stem structure from individual-tree point clouds | [TLS workflow](docs/tls_workflow.md) |
 
-The project currently serves as a documented and reproducible prototype. The longer-term aim is to develop a tool that can process multiple tree point clouds automatically.
+The project combines reproducible analysis scripts, processed outputs, validation results and an interactive TLS application.
 
 ## Example outputs
 
 ### Airborne LiDAR
 
-![Detected treetops and crowns](outputs/airborne/figures/03_treetops_and_crowns.png)
+![Airborne LiDAR workflow](outputs/airborne/figures/social_preview.png)
 
 ### Terrestrial LiDAR
 
-![TLS stem structure](outputs/tls/figures/WL12_lower_stem_profile.png)
+![TLS Forest Structure application](outputs/tls/figures/tls_forest_structure_app.png)
 
 Additional figures, tables and spatial files are available in the [outputs directory](outputs/README.md).
+
+## Interactive TLS prototype
+
+The local Shiny application allows a user to upload an isolated-tree `.las` or `.laz` point cloud and calculate:
+
+- tree height;
+- diameter at breast height;
+- basal area;
+- circle-fitting diagnostics;
+- an `acceptable`, `inspect` or `failed` quality classification.
+
+It also displays front and side point-cloud views, the 1.3 m cross-section and the fitted DBH circle.
+
+Launch the application from the project root:
+
+```r
+shiny::runApp("app")
+```
+
+See the [terrestrial LiDAR workflow](docs/tls_workflow.md) for input requirements, validation results and limitations.
 
 ## Repository structure
 
 ```text
 open-lidar-forest-structure/
+├── app/
+│   └── app.R
+├── R/
+│   └── tls_processing.R
 ├── data/
 │   ├── raw/
 │   │   ├── airborne/
@@ -69,7 +91,7 @@ Install the required R packages:
 source("scripts/00_setup.R")
 ```
 
-The numbered scripts should be run from the project root.
+Run all scripts from the project root.
 
 ### Airborne module
 
@@ -87,7 +109,7 @@ source("scripts/tls/01_inspect_tls_tree.R")
 
 Continue with the remaining scripts in `scripts/tls/` in numerical order.
 
-Instructions for each script are provided in:
+Instructions for the analysis scripts are provided in:
 
 - [Airborne scripts](scripts/airborne/README.md)
 - [TLS scripts](scripts/tls/README.md)
@@ -96,20 +118,22 @@ Instructions for each script are provided in:
 
 The airborne example uses `Megaplot.laz`, distributed with the R package `lidR`.
 
-The terrestrial example uses an individual-tree point cloud from:
+The terrestrial workflow uses open individual-tree TLS point clouds from:
 
 > Bornand, A. (2023). *Individual tree TLS point clouds for tree volume estimation*. EnviDat.
-> https://doi.org/10.16904/envidat.403
+> [https://doi.org/10.16904/envidat.403](https://doi.org/10.16904/envidat.403)
 
-Large raw point clouds and generated raster files are excluded from GitHub. See the module documentation for data preparation and processing details.
+Large raw point clouds and generated raster files are excluded from GitHub. The module documentation explains how the data are organised and processed.
 
-## Project status
+## Current results
 
-The airborne workflow is complete as a demonstration of canopy and crown-structure extraction.
+The airborne module demonstrates canopy-height modelling, treetop detection, crown delineation and the extraction of biomass-relevant structural predictors.
 
-The TLS workflow is currently a validated single-tree prototype. The next stage is batch processing and evaluation across trees of different species and sizes.
+The TLS module processed tree height successfully for all 59 available trees. DBH estimates were produced for 53 trees, of which 38 passed automatic quality control. Among the quality-approved measurements, mean absolute DBH error was 0.52 cm and root mean square error was 0.78 cm.
 
-The outputs should be treated as structural measurements and experimental results. Biomass estimation requires suitable reference observations and independent model validation.
+These results represent validation on the development dataset rather than independent external validation. Measurements marked `inspect` require visual review, while failed measurements should not be assigned a DBH value.
+
+The airborne biomass layers are structural predictors rather than direct biomass estimates. Biomass estimation requires suitable reference observations and independent model validation.
 
 ## Licence
 

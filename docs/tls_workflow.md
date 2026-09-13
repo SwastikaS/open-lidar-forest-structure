@@ -215,6 +215,35 @@ The current workflow assumes that:
 
 The stem-tracking rules and quality thresholds are prototype settings developed for these data. They may require adjustment for other scanners, tree species, forest conditions and point-cloud densities. Trees marked `inspect` should be reviewed visually, while failed trees require improved stem isolation or an alternative fitting method.
 
+## Interactive TLS application
+
+The repository includes a local Shiny application that provides a simple interface for processing individual-tree TLS point clouds.
+
+![TLS Forest Structure application](../outputs/tls/figures/tls_forest_structure_app.png)
+
+### Available outputs
+
+After the user uploads an isolated `.las` or `.laz` tree file, the application provides:
+
+- calculated tree height;
+- estimated DBH at 1.3 m;
+- basal area derived from the estimated DBH;
+- DBH estimation method;
+- circle-fitting error;
+- circumference completeness;
+- retained stem-point count;
+- automatic `acceptable`, `inspect` or `failed` classification;
+- front and side point-cloud views;
+- visualisation of the 1.3 m stem cross-section and fitted circle;
+- downloadable results in CSV format.
+
+### Running the application
+
+Open the project in RStudio and install the required packages if necessary:
+
+```r
+install.packages(c("shiny", "MASS"))
+
 ## References
 
 Bornand, A. (2023). *Individual tree TLS point clouds for tree volume estimation*. EnviDat.
