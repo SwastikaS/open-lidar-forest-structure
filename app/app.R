@@ -58,6 +58,75 @@ ui <- fluidPage(
     .plot-note { margin-top: 10px; color: #666; font-size: 13px; }
     .tab-content { padding-top: 18px; }
     .table-scroll { overflow-x: auto; }
+    .batch-layout {
+      display: flex;
+      align-items: stretch;
+    }
+    .batch-layout > .col-sm-4,
+    .batch-layout > .col-sm-8 {
+      float: none;
+    }
+    .sticky-sidebar {
+      max-height: calc(100vh - 30px);
+      overflow-y: auto;
+      z-index: 10;
+    }
+    .sticky-sidebar.sidebar-fixed {
+      position: fixed;
+      top: 15px;
+    }
+    @media (max-width: 767px) {
+      .batch-layout {
+        display: block;
+      }
+      .batch-layout > .col-sm-4,
+      .batch-layout > .col-sm-8 {
+        float: left;
+      }
+      .sticky-sidebar {
+        position: static;
+        max-height: none;
+        overflow-y: visible;
+      }
+    }
+  ")),
+  tags$script(HTML("
+    $(function() {
+      var startTop = null;
+
+      function updateBatchSidebar() {
+        var sidebar = $('.sticky-sidebar');
+        var column = sidebar.parent();
+
+        if (!sidebar.length || !sidebar.is(':visible') || window.innerWidth < 768) {
+          sidebar.removeClass('sidebar-fixed').css({left: '', width: ''});
+          startTop = null;
+          return;
+        }
+
+        if (!sidebar.hasClass('sidebar-fixed')) {
+          startTop = sidebar.offset().top;
+        }
+
+        if (window.pageYOffset > startTop - 15) {
+          var columnBox = column[0].getBoundingClientRect();
+          sidebar.addClass('sidebar-fixed').css({
+            left: (columnBox.left + 15) + 'px',
+            width: column.width() + 'px'
+          });
+        } else {
+          sidebar.removeClass('sidebar-fixed').css({left: '', width: ''});
+        }
+      }
+
+      $(window).off('.tlsSidebar');
+      $(window).on('scroll.tlsSidebar resize.tlsSidebar', updateBatchSidebar);
+      $('a[data-toggle=tab]').on('shown.bs.tab', function() {
+        startTop = null;
+        updateBatchSidebar();
+      });
+      updateBatchSidebar();
+    });
   "))),
 
   div(class = "title-panel",
@@ -97,6 +166,12 @@ ui <- fluidPage(
               div(class = "section-panel",
                 h3("DBH cross-section at 1.3 m"),
                 plotOutput("single_cross_section", height = "520px")
+              ),
+              div(class = "section-panel",
+                h3("Lower-stem taper"),
+                tableOutput("single_taper_table"),
+                plotOutput("single_taper_plot", height = "420px"),
+                tableOutput("single_taper_summary")
               )
             ),
             div(class = "section-panel",
@@ -110,20 +185,25 @@ ui <- fluidPage(
     ),
 
     tabPanel("Batch processing",
-      sidebarLayout(
-        sidebarPanel(
-          h4("Multiple point clouds"),
-          fileInput("batch_files", "Upload isolated-tree LAS or LAZ files",
-            multiple = TRUE, accept = c(".las", ".laz")),
-          actionButton("analyse_batch", "Analyse all trees",
-            class = "btn-success", width = "100%"),
-          br(), br(),
-          helpText("Each file must contain one isolated tree. Files are processed ",
-            "sequentially, so one failed tree does not stop the batch."),
-          tags$hr(),
-          uiOutput("batch_tree_selector")
+      div(class = "row batch-layout",
+        column(4,
+          div(class = "well sticky-sidebar",
+            h4("Multiple point clouds"),
+            fileInput("batch_files", "Upload isolated-tree LAS or LAZ files",
+              multiple = TRUE, accept = c(".las", ".laz")),
+            actionButton("analyse_batch", "Analyse all trees",
+              class = "btn-success", width = "100%"),
+            br(), br(),
+            helpText("Each file must contain one isolated tree. Files are processed ",
+              "sequentially, so one failed tree does not stop the batch."),
+            tags$hr(),
+            strong("Inspect a processed tree"),
+            uiOutput("batch_tree_selector"),
+            helpText("Choose a successful tree after the batch has finished. ",
+              "Its measurements and plots will appear below the table.")
+          )
         ),
-        mainPanel(
+        column(8,
           uiOutput("batch_message"),
           conditionalPanel(condition = "output.batch_complete",
             fluidRow(
@@ -150,7 +230,11 @@ ui <- fluidPage(
                 h3(textOutput("selected_tree_heading")),
                 result_cards("selected_"),
                 plotOutput("selected_projections", height = "520px"),
-                plotOutput("selected_cross_section", height = "520px")
+                plotOutput("selected_cross_section", height = "520px"),
+                h3("Lower-stem taper"),
+                tableOutput("selected_taper_table"),
+                plotOutput("selected_taper_plot", height = "420px"),
+                tableOutput("selected_taper_summary")
               )
             )
           )
@@ -193,7 +277,13 @@ server <- function(input, output, session) {
         incProgress(0.4, detail = "Reading coordinates")
         analysed <- process_tls_tree_visual(path)
         analysed$summary$file_name <- input$single_file$name
-        incProgress(0.6, detail = "Preparing results")
+        incProgress(0.3, detail = "Estimating lower-stem taper")
+        if (isTRUE(analysed$success)) {
+          analysed$taper <- estimate_stem_taper(path)
+        } else {
+          analysed$taper <- NULL
+        }
+        incProgress(0.3, detail = "Preparing results")
         analysed
       })
     }, error = function(e) {
@@ -297,7 +387,21 @@ server <- function(input, output, session) {
     sum(batch_results()$quality_flag == "acceptable"))
   output$batch_attention <- renderText(
     sum(batch_results()$quality_flag != "acceptable"))
-  output$batch_table <- renderTable(batch_results(), digits = 3)
+  output$batch_table <- renderTable({
+    results <- batch_results()
+    data.frame(
+      File = results$file_name,
+      `Height (m)` = round(results$calculated_height_m, 2),
+      `DBH (cm)` = round(results$estimated_dbh_cm, 2),
+      `Diameter at 6 m (cm)` = round(results$diameter_6m_cm, 2),
+      `Taper (cm/m)` = round(results$mean_taper_cm_per_m, 2),
+      `Lean (degrees)` = round(results$lower_stem_lean_degrees, 2),
+      `DBH quality` = results$quality_flag,
+      `Taper quality` = results$taper_quality_flag,
+      Status = results$processing_status,
+      check.names = FALSE
+    )
+  }, na = "—")
 
   output$batch_tree_selector <- renderUI({
     results <- batch_results()
@@ -306,23 +410,32 @@ server <- function(input, output, session) {
     if (length(successful) == 0) {
       return(helpText("No successful tree is available for visual inspection."))
     }
-    selectInput("selected_batch_tree", "Inspect one processed tree",
-      choices = successful)
+    selectInput(
+      "selected_batch_tree",
+      "Choose a successfully processed tree",
+      choices = c("Select a tree..." = "", successful),
+      selected = ""
+    )
   })
 
   observeEvent(input$selected_batch_tree, {
-    req(input$selected_batch_tree, batch_paths())
+    req(nzchar(input$selected_batch_tree), batch_paths())
     path <- unname(batch_paths()[input$selected_batch_tree])
     req(length(path) == 1, file.exists(path))
     result <- withProgress(
       message = paste("Preparing", input$selected_batch_tree), value = 0, {
         analysed <- process_tls_tree_visual(path)
         analysed$summary$file_name <- input$selected_batch_tree
+        if (isTRUE(analysed$success)) {
+          analysed$taper <- estimate_stem_taper(path)
+        } else {
+          analysed$taper <- NULL
+        }
         incProgress(1)
         analysed
       })
     selected_visual(result)
-  }, ignoreInit = FALSE)
+  }, ignoreInit = TRUE)
 
   selected_summary <- reactive({
     req(selected_visual())
@@ -380,6 +493,85 @@ server <- function(input, output, session) {
       lwd = 2, col = "#2457A7")
   }
 
+  draw_taper <- function(taper_result) {
+    taper <- taper_result$taper_table
+    valid <- is.finite(taper$estimated_diameter_cm)
+
+    plot(
+      taper$estimated_diameter_cm[valid],
+      taper$height_m[valid],
+      type = "b",
+      pch = 16,
+      lwd = 2,
+      col = "#347847",
+      xlab = "Estimated stem diameter (cm)",
+      ylab = "Height above tree base (m)",
+      main = "Lower-stem taper",
+      ylim = range(taper$height_m)
+    )
+
+    inspect <- valid & taper$quality_flag == "inspect"
+    if (any(inspect)) {
+      points(
+        taper$estimated_diameter_cm[inspect],
+        taper$height_m[inspect],
+        pch = 17,
+        cex = 1.3,
+        col = "#E67E22"
+      )
+    }
+
+    legend(
+      "topright",
+      legend = c("Estimated diameter", "Inspect fit"),
+      col = c("#347847", "#E67E22"),
+      pch = c(16, 17),
+      lty = c(1, NA),
+      bty = "n"
+    )
+  }
+
+  taper_table_for_display <- function(taper_result) {
+    taper <- taper_result$taper_table
+    data.frame(
+      `Height (m)` = taper$height_m,
+      `Diameter (cm)` = round(taper$estimated_diameter_cm, 2),
+      `Circle RMSE (mm)` = round(taper$circle_rmse_mm, 2),
+      `Circumference (%)` = round(
+        taper$circumference_completeness_percent,
+        1
+      ),
+      `Points used` = taper$points_used,
+      Quality = taper$quality_flag,
+      check.names = FALSE
+    )
+  }
+
+  taper_summary_for_display <- function(taper_result) {
+    summary <- taper_result$summary
+    data.frame(
+      Measure = c(
+        "Mean taper",
+        "Linear taper",
+        "Lower-stem displacement",
+        "Lower-stem lean",
+        "Successful measurement heights"
+      ),
+      Result = c(
+        format_value(summary$mean_taper_cm_per_m, 2, " cm/m"),
+        format_value(summary$linear_taper_cm_per_m, 2, " cm/m"),
+        format_value(summary$lower_stem_displacement_m, 3, " m"),
+        format_value(summary$lower_stem_lean_degrees, 2, "°"),
+        paste0(
+          summary$successful_measurements,
+          " of ",
+          summary$requested_measurements
+        )
+      ),
+      stringsAsFactors = FALSE
+    )
+  }
+
   output$single_projections <- renderPlot({
     req(single_analysis()$success)
     draw_projections(single_analysis())
@@ -388,6 +580,18 @@ server <- function(input, output, session) {
     req(single_analysis()$success)
     draw_cross_section(single_analysis())
   })
+  output$single_taper_table <- renderTable({
+    req(single_analysis()$taper)
+    taper_table_for_display(single_analysis()$taper)
+  }, na = "—")
+  output$single_taper_plot <- renderPlot({
+    req(single_analysis()$taper)
+    draw_taper(single_analysis()$taper)
+  })
+  output$single_taper_summary <- renderTable({
+    req(single_analysis()$taper)
+    taper_summary_for_display(single_analysis()$taper)
+  })
   output$selected_projections <- renderPlot({
     req(selected_visual()$success)
     draw_projections(selected_visual())
@@ -395,6 +599,18 @@ server <- function(input, output, session) {
   output$selected_cross_section <- renderPlot({
     req(selected_visual()$success)
     draw_cross_section(selected_visual())
+  })
+  output$selected_taper_table <- renderTable({
+    req(selected_visual()$taper)
+    taper_table_for_display(selected_visual()$taper)
+  }, na = "—")
+  output$selected_taper_plot <- renderPlot({
+    req(selected_visual()$taper)
+    draw_taper(selected_visual()$taper)
+  })
+  output$selected_taper_summary <- renderTable({
+    req(selected_visual()$taper)
+    taper_summary_for_display(selected_visual()$taper)
   })
 
   output$download_single <- downloadHandler(
