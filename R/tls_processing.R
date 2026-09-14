@@ -621,6 +621,57 @@ process_tls_batch <- function(file_paths, display_names = basename(file_paths),
 
     result <- process_tls_tree(file_paths[i])
     result$file_name <- display_names[i]
+
+    result$diameter_2m_cm <- NA_real_
+    result$diameter_4m_cm <- NA_real_
+    result$diameter_6m_cm <- NA_real_
+    result$mean_taper_cm_per_m <- NA_real_
+    result$linear_taper_cm_per_m <- NA_real_
+    result$lower_stem_displacement_m <- NA_real_
+    result$lower_stem_lean_degrees <- NA_real_
+    result$taper_quality_flag <- "failed"
+    result$taper_error_message <- NA_character_
+
+    if (result$processing_status == "success") {
+      taper_result <- tryCatch(
+        estimate_stem_taper(file_paths[i]),
+        error = function(e) e
+      )
+
+      if (inherits(taper_result, "error")) {
+        result$taper_error_message <- conditionMessage(taper_result)
+      } else {
+        taper_table <- taper_result$taper_table
+        taper_summary <- taper_result$summary
+
+        diameter_at <- function(height) {
+          row <- which(abs(taper_table$height_m - height) < 0.001)
+          if (length(row) == 0) {
+            return(NA_real_)
+          }
+          taper_table$estimated_diameter_cm[row[1]]
+        }
+
+        result$diameter_2m_cm <- diameter_at(2)
+        result$diameter_4m_cm <- diameter_at(4)
+        result$diameter_6m_cm <- diameter_at(6)
+        result$mean_taper_cm_per_m <- taper_summary$mean_taper_cm_per_m
+        result$linear_taper_cm_per_m <- taper_summary$linear_taper_cm_per_m
+        result$lower_stem_displacement_m <-
+          taper_summary$lower_stem_displacement_m
+        result$lower_stem_lean_degrees <-
+          taper_summary$lower_stem_lean_degrees
+
+        if (all(taper_table$quality_flag == "acceptable")) {
+          result$taper_quality_flag <- "acceptable"
+        } else if (any(taper_table$quality_flag == "failed")) {
+          result$taper_quality_flag <- "incomplete"
+        } else {
+          result$taper_quality_flag <- "inspect"
+        }
+      }
+    }
+
     results[[i]] <- result
   }
 
