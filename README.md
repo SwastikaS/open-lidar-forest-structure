@@ -7,7 +7,7 @@ Open-source R workflows for extracting forest and tree structure from airborne a
 This repository contains two complementary LiDAR workflows:
 
 | Module | Purpose | Documentation |
-|---|---|---|
+| --- | --- | --- |
 | Airborne LiDAR | Maps canopy structure, detects treetops and delineates crowns across a forest area | [Airborne workflow](docs/airborne_workflow.md) |
 | Terrestrial LiDAR | Measures height, DBH, basal area, taper and lower-stem structure from individual-tree point clouds | [TLS workflow](docs/tls_workflow.md) |
 
@@ -17,25 +17,25 @@ The project combines reproducible analysis scripts, processed outputs, validatio
 
 ### Airborne LiDAR
 
-![Airborne LiDAR workflow](outputs/airborne/figures/social_preview.png)
+![Detected treetops and delineated crowns](outputs/airborne/figures/03_treetops_and_crowns.png)
 
 ### Terrestrial LiDAR
 
-![TLS Forest Structure application](outputs/tls/figures/tls_forest_structure_app.png)
+![TLS stem-taper validation](outputs/tls/figures/tls_stem_taper_validation.png)
 
 Additional figures, tables and spatial files are available in the [outputs directory](outputs/README.md).
 
 ## Interactive TLS prototype
 
-The local Shiny application allows a user to upload an isolated-tree `.las` or `.laz` point cloud and calculate:
+The local Shiny application processes isolated-tree `.las` or `.laz` point clouds and reports:
 
 - tree height;
 - diameter at breast height;
 - basal area;
+- stem diameters at selected heights;
+- taper and lower-stem structure;
 - circle-fitting diagnostics;
 - an `acceptable`, `inspect` or `failed` quality classification.
-
-It also displays front and side point-cloud views, the 1.3 m cross-section and the fitted DBH circle.
 
 Launch the application from the project root:
 
@@ -83,33 +83,23 @@ open-lidar-forest-structure/
 
 ## Getting started
 
-Clone the repository and open the RStudio project.
-
-Install the required R packages:
+Clone the repository and open the RStudio project. Install the required R packages:
 
 ```r
 source("scripts/00_setup.R")
 ```
 
-Run all scripts from the project root.
-
-### Airborne module
+Run scripts from the project root and follow the numerical order within each module:
 
 ```r
+# Airborne LiDAR
 source("scripts/airborne/01_inspect_point_cloud.R")
-```
 
-Continue with the remaining scripts in `scripts/airborne/` in numerical order.
-
-### TLS module
-
-```r
+# Terrestrial LiDAR
 source("scripts/tls/01_inspect_tls_tree.R")
 ```
 
-Continue with the remaining scripts in `scripts/tls/` in numerical order.
-
-Instructions for the analysis scripts are provided in:
+Detailed script instructions are provided in:
 
 - [Airborne scripts](scripts/airborne/README.md)
 - [TLS scripts](scripts/tls/README.md)
@@ -121,17 +111,19 @@ The airborne example uses `Megaplot.laz`, distributed with the R package `lidR`.
 The terrestrial workflow uses open individual-tree TLS point clouds from:
 
 > Bornand, A. (2023). *Individual tree TLS point clouds for tree volume estimation*. EnviDat.
-> [https://doi.org/10.16904/envidat.403](https://doi.org/10.16904/envidat.403)
+> <https://doi.org/10.16904/envidat.403>
 
 Large raw point clouds and generated raster files are excluded from GitHub. The module documentation explains how the data are organised and processed.
 
 ## Current results
 
-The airborne module demonstrates canopy-height modelling, treetop detection, crown delineation and the extraction of biomass-relevant structural predictors.
+The airborne module demonstrates canopy-height modelling, treetop detection, crown delineation and extraction of biomass-relevant structural predictors.
 
-The TLS module processed tree height successfully for all 59 available trees. DBH estimates were produced for 53 trees, of which 38 passed automatic quality control. Among the quality-approved measurements, mean absolute DBH error was 0.52 cm and root mean square error was 0.78 cm.
+The TLS module calculated height for all 59 trees and DBH for 53 trees. Thirty-eight DBH estimates passed automatic quality control; within that group, mean absolute difference from the published TLS-derived DBH was 0.52 cm and root mean square difference was 0.78 cm.
 
-These results represent validation on the development dataset rather than independent external validation. Measurements marked `inspect` require visual review, while failed measurements should not be assigned a DBH value.
+Stem diameters were also estimated at 1.3, 2, 4 and 6 m. Among measurements passing geometric quality control, mean absolute differences from the published TLS-derived values ranged from 0.50 to 0.72 cm across the four heights. Eight comparisons differed by at least 5 cm and were placed in a separate investigation queue.
+
+These comparisons use measurements derived from the same TLS dataset and are not independent field validation. Results marked `inspect` require visual review, while failed measurements are not assigned a diameter.
 
 The airborne biomass layers are structural predictors rather than direct biomass estimates. Biomass estimation requires suitable reference observations and independent model validation.
 

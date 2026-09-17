@@ -1,256 +1,225 @@
 # Terrestrial LiDAR workflow
 
-## What this workflow does
+## Purpose
 
-This workflow uses a terrestrial laser-scanning (TLS) point cloud of an individual tree to calculate:
+This workflow processes isolated individual-tree terrestrial laser-scanning (TLS) point clouds to calculate:
 
 - total tree height;
 - diameter at breast height (DBH);
 - basal area;
-- stem diameter at different heights;
+- stem diameter at selected heights;
 - lower-stem taper;
-- stem displacement;
-- lower-stem lean.
+- stem displacement and lean;
+- geometric quality diagnostics.
 
-The current example uses an isolated European beech tree named `WL12`.
+The analysis began with the European beech tree `WL12` and was subsequently applied across all 59 available tree point clouds.
 
 ## Data source
 
-The point cloud comes from the following open dataset:
+The workflow uses the open dataset:
 
-Bornand, A. (2023). *Individual tree TLS point clouds for tree volume estimation*. EnviDat.
-https://doi.org/10.16904/envidat.403
+> Bornand, A. (2023). *Individual tree TLS point clouds for tree volume estimation*. EnviDat.
+> <https://doi.org/10.16904/envidat.403>
 
-The dataset contains individual-tree point clouds and reference tree measurements. The trees were scanned under leaf-off conditions using terrestrial laser scanning.
+The trees were scanned under leaf-off conditions during winter 2020/2021 with a Leica BLK360. Each `.laz` file contains one already segmented tree. The coordinates use a local system in metres rather than a geographic coordinate reference system.
 
-## Workflow steps
+The accompanying parameter table contains tree height and stem-diameter measurements derived from the TLS data. These values support method comparison but are not independent field measurements.
+
+## Input requirements
+
+The current workflow assumes that:
+
+- each input file contains one isolated tree;
+- X, Y and Z coordinates are expressed in metres;
+- the point cloud includes the tree base and top;
+- enough stem-surface points are present near the required heights;
+- branches and noise do not completely obscure the main stem.
+
+Plot-level tree detection and segmentation are outside the present workflow.
+
+## Processing method
 
 ### 1. Inspect the point cloud
 
-The first script examines:
-
-- the number of points;
-- the X, Y and Z coordinate ranges;
-- the point density;
-- the minimum and maximum elevations;
-- the overall dimensions of the tree.
-
-The `WL12` point cloud contains approximately 1.42 million points.
-
-The file has no geographic coordinate reference system because its coordinates describe the tree within a local measurement system. The coordinate units are metres.
+The inspection stage records point count, coordinate ranges, vertical extent and point density. The `WL12` example contains approximately 1.42 million points and spans 25.599 m vertically.
 
 ### 2. Calculate tree height
 
-The lowest point is treated as the tree base.
+Tree height is calculated from the vertical extent of the isolated point cloud:
 
-Tree height is calculated as:
+```text
+tree height = maximum Z − minimum Z
+```
 
-`highest Z value − lowest Z value`
+This approach requires the tree base and highest return to be present. It does not perform terrain normalisation because each file already contains a locally referenced individual tree.
 
-The calculated height of `WL12` is 25.599 m. This matches the reference tree height supplied with the dataset.
+### 3. Estimate DBH
 
-### 3. Extract the DBH section
+DBH is measured at 1.3 m above the lowest point. The batch workflow uses a hybrid method:
 
-DBH is normally measured at 1.3 m above the tree base.
+1. locate a lower-stem cross-section near 0.3 m;
+2. fit a robust circle to the candidate stem points;
+3. track the stem centre and radius upwards in 0.1 m steps;
+4. accept the fitted circle at 1.3 m when tracking reaches breast height;
+5. use a direct 1.3 m circle fit only when tracking fails and the direct fit passes additional quality checks.
 
-The workflow extracts a thin horizontal section between 1.25 and 1.35 m. Looking at this section from above produces a two-dimensional view of the stem circumference.
+The robust circle fit reduces the influence of stray points, small branches and noise. The estimated DBH is twice the fitted radius.
 
-Points unusually far from the main stem are removed before fitting the circle.
+### 4. Estimate stem taper
 
-### 4. Estimate DBH
+The stem is tracked upwards using consecutive horizontal cross-sections. At each step, the workflow searches near the preceding circle, fits a new circle and rejects implausible jumps in centre position or radius.
 
-A robust circle is fitted to the cleaned stem points. Robust fitting reduces the influence of stray points, noise and small branches.
+Diameters are extracted at 1.3, 2, 4 and 6 m. Accepted stem centres are also used to calculate lower-stem displacement and lean.
 
-The diameter of the fitted circle is used as the estimated DBH.
+### 5. Assign quality flags
+
+Geometric fit quality and agreement with the published TLS-derived values are treated separately.
+
+`quality_flag` describes the geometry of the fitted circle:
+
+- `acceptable`: passes the automatic geometric checks;
+- `inspect`: produces an estimate but requires visual review;
+- `failed`: does not return a defensible estimate.
+
+`comparison_flag` describes agreement with the published TLS-derived value:
+
+- `below review threshold`: absolute difference is less than 5 cm;
+- `large disagreement: investigate`: absolute difference is at least 5 cm;
+- `no comparison available`: either value is missing.
+
+The 5 cm threshold is an investigation rule, not proof that either measurement is correct.
+
+## Demonstration tree: WL12
+
+The `WL12` point cloud provides a clear example of the workflow.
 
 | Measurement | Result |
-|---|---:|
-| Estimated DBH | 44.339 cm |
-| Reference diameter at 1.3 m | 43.588 cm |
-| Absolute error | 0.751 cm |
-| Percentage error | 1.72% |
-| Circle-fit RMSE | 10.31 mm |
-| Circumference coverage | 100% |
-
-### 5. Track the stem upwards
-
-The workflow begins with the reliable fitted circle at 1.3 m and moves upwards in 0.1 m steps.
-
-At each height, it:
-
-1. extracts a thin horizontal section;
-2. searches near the previously fitted stem position;
-3. selects points close to the expected stem surface;
-4. fits a new circle;
-5. rejects sudden or unrealistic changes caused by branches or noise.
-
-This produces a series of stem centres and diameters between 1.3 and 6 m.
-
-### 6. Calculate stem structure
-
-The accepted circles are used to describe the shape and position of the lower stem.
-
-| Measurement | Result |
-|---|---:|
+| --- | ---: |
 | Calculated tree height | 25.599 m |
 | Estimated DBH | 44.339 cm |
+| Published TLS-derived DBH | 43.588 cm |
+| Absolute DBH difference | 0.751 cm |
+| Circle-fit RMSE at 1.3 m | 10.31 mm |
+| Circumference completeness | 100% |
 | Diameter at 6 m | 38.483 cm |
 | Basal area at 1.3 m | 0.154 m² |
 | Mean taper | 1.246 cm m⁻¹ |
 | Lower-stem displacement | 0.351 m |
 | Lower-stem lean | 4.276° |
-| Mean absolute diameter error | 0.517 cm |
-| Accepted tracking heights | 48 |
 
-## Which parts use established methods?
+## Batch validation
 
-The following steps are commonly used in TLS forest measurement:
+### Tree height
 
-- measuring DBH at 1.3 m;
-- extracting horizontal stem sections;
-- fitting circles or cylinders to stem points;
-- calculating tree height from the point-cloud height range;
-- fitting several stem sections to describe taper and lean.
+All 59 trees were processed successfully for height.
 
-## Which parts are experimental?
+| Statistic | Result |
+| --- | ---: |
+| Mean error | −0.216 m |
+| Mean absolute error | 0.217 m |
+| Root mean square error | 0.467 m |
 
-The exact upward-tracking rules in this project are part of our current prototype.
+The negative mean error indicates a small overall tendency to underestimate height.
 
-These include:
-
-- the 0.1 m tracking interval;
-- the search distance around the previous circle;
-- the minimum number of required points;
-- the permitted change in radius;
-- the permitted movement of the stem centre;
-- the circle-fit quality threshold.
-
-These settings worked well for `WL12`, but they have not yet been tested across all available trees. They should therefore be described as prototype settings rather than a universal method.
-
-## Current limitations
-
-The workflow begins with an already separated individual-tree point cloud. It does not yet detect and separate individual trees from a complete forest-plot point cloud.
-
-The current results are based on one demonstration tree. A successful result for one tree does not prove that the same settings will work for every species, stem size or point-cloud condition.
-
-## Next development stage
-
-The next stage will:
-
-1. run the measurements across all available individual-tree point clouds;
-2. connect each point cloud with its reference measurements;
-3. compare estimated and reference height and diameter;
-4. record successful and failed fits;
-5. identify settings that work across different trees and species;
-6. convert the workflow into reusable R functions;
-7. develop a simple interface for uploading and processing individual-tree files.
-
-## Outputs
-
-Generated results are stored under:
-
-- `outputs/tls/figures/`
-- `outputs/tls/tables/`
-- `outputs/tls/vectors/`
-- `outputs/tls/rasters/`
-- `outputs/tls/models/`
-
-The processing scripts are stored under:
-
-- `scripts/tls/`
-
-## Batch processing and validation
-
-The prototype was applied to 59 individual-tree TLS point clouds. Tree height was calculated from the vertical extent of each point cloud. DBH was estimated by locating the lower stem and tracking fitted stem circles upwards in 0.1 m steps until breast height at 1.3 m. When tracking failed, a direct circle fit was accepted only if it passed additional quality checks.
-
-The DBH estimates were assigned one of three outcomes:
-
-- `acceptable`: the estimate passed the automatic quality checks;
-- `inspect`: an estimate was produced but should be reviewed;
-- `failed`: the workflow did not return a DBH estimate.
-
-### Tree-height results
-
-All 59 trees were processed successfully for height. Comparison with the reference measurements produced:
-
-- mean absolute error: 0.217 m;
-- root mean square error: 0.467 m;
-- mean error: −0.216 m.
-
-The negative mean error indicates a small overall tendency to underestimate tree height. Most estimates were close to their reference values, although a few trees had larger errors.
-
-### DBH results
+### DBH
 
 Of the 59 trees:
 
 - 53 trees (89.8%) produced DBH estimates;
-- 38 trees (64.4%) passed the automatic quality checks;
-- 15 trees (25.4%) were marked for inspection;
-- 6 trees (10.2%) failed without returning an unreliable value.
+- 38 trees (64.4%) passed automatic quality control;
+- 15 trees (25.4%) were marked `inspect`;
+- 6 trees (10.2%) failed without receiving a DBH estimate.
 
-Among the 38 quality-approved estimates:
+Among the 38 quality-approved DBH estimates:
 
-- mean error: 0.34 cm;
-- mean absolute error: 0.52 cm;
-- root mean square error: 0.78 cm;
-- 89.5% were within 1 cm of the reference DBH;
-- 92.1% were within 2 cm;
-- 100% were within 5 cm.
+| Statistic | Result |
+| --- | ---: |
+| Mean error | 0.34 cm |
+| Mean absolute error | 0.52 cm |
+| Root mean square error | 0.78 cm |
+| Within 1 cm | 89.5% |
+| Within 2 cm | 92.1% |
+| Within 5 cm | 100% |
 
-The estimates marked for inspection had a mean absolute error of 4.47 cm and an RMSE of 10.51 cm. Two large errors, WL29 and WL06, were correctly placed in the inspection category. This demonstrates that the quality-control stage is necessary and that unfiltered batch estimates should not be treated as equally reliable.
+The 15 estimates marked `inspect` had a mean absolute error of 4.47 cm and an RMSE of 10.51 cm. The poorer performance of this group demonstrates why automated outputs should not be treated as equally reliable.
 
-![TLS DBH batch validation](../outputs/tls/figures/tls_dbh_batch_validation.png)
+### Stem diameters at multiple heights
 
-### Interpretation and limitations
+Diameter estimates were compared with the published TLS-derived values at 1.3, 2, 4 and 6 m.
 
-These results show that the prototype can automate height and DBH extraction across multiple isolated-tree point clouds while separating reliable estimates from questionable cases. The quality-approved results are promising for this dataset, but they do not constitute independent external validation.
+| Height | Valid comparisons | All MAE | All RMSE | Acceptable comparisons | Acceptable MAE | Acceptable RMSE |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1.3 m | 53 | 1.64 cm | 5.63 cm | 38 | 0.52 cm | 0.78 cm |
+| 2.0 m | 53 | 1.39 cm | 3.39 cm | 35 | 0.72 cm | 1.11 cm |
+| 4.0 m | 53 | 1.17 cm | 2.92 cm | 39 | 0.65 cm | 1.90 cm |
+| 6.0 m | 52 | 1.41 cm | 3.03 cm | 34 | 0.50 cm | 0.74 cm |
 
-The current workflow assumes that:
+Eight measurements differed from the published values by at least 5 cm. Seven were already classified `inspect` by the geometric checks. AD11 at 4 m passed the geometric checks but differed by 11.51 cm. Visual inspection showed one clear ring in both 10 cm and 20 cm cross-sections, so the reason for that disagreement remains unresolved.
 
-- each input file contains one isolated tree;
-- the point cloud includes the tree base;
-- coordinates and elevations are expressed in metres;
-- enough stem-surface points are available near breast height;
-- low branches do not completely obscure the main stem.
+The comparison queue is therefore complementary to geometric quality control: it identifies unusual agreement patterns without redefining a geometrically sound circle as a failed fit.
 
-The stem-tracking rules and quality thresholds are prototype settings developed for these data. They may require adjustment for other scanners, tree species, forest conditions and point-cloud densities. Trees marked `inspect` should be reviewed visually, while failed trees require improved stem isolation or an alternative fitting method.
+![TLS stem-taper validation](../outputs/tls/figures/tls_stem_taper_validation.png)
 
 ## Interactive TLS application
 
-The repository includes a local Shiny application that provides a simple interface for processing individual-tree TLS point clouds.
+The repository includes a local Shiny application for processing isolated `.las` or `.laz` trees. It provides summary measurements, geometric diagnostics, point-cloud projections, cross-section plots and downloadable CSV results.
 
-![TLS Forest Structure application](../outputs/tls/figures/tls_forest_structure_app.png)
-
-### Available outputs
-
-After the user uploads an isolated `.las` or `.laz` tree file, the application provides:
-
-- calculated tree height;
-- estimated DBH at 1.3 m;
-- basal area derived from the estimated DBH;
-- DBH estimation method;
-- circle-fitting error;
-- circumference completeness;
-- retained stem-point count;
-- automatic `acceptable`, `inspect` or `failed` classification;
-- front and side point-cloud views;
-- visualisation of the 1.3 m stem cross-section and fitted circle;
-- downloadable results in CSV format.
-
-### Running the application
-
-Open the project in RStudio and install the required packages if necessary:
+Install the required packages through the project setup script and launch the application from the project root:
 
 ```r
-install.packages(c("shiny", "MASS"))
+source("scripts/00_setup.R")
+shiny::runApp("app")
+```
+
+The application runs locally in a web-browser window. Shiny provides the interface, while the reusable calculations are stored in `R/tls_processing.R`.
+
+## Scripts and outputs
+
+Run the TLS scripts from the project root in numerical order. Script-level instructions are available in [`scripts/tls/README.md`](../scripts/tls/README.md).
+
+The main validation script is:
+
+```r
+source("scripts/tls/10_validate_stem_taper.R")
+```
+
+Generated files are organised under:
+
+- `outputs/tls/figures/` — diagnostic and validation figures;
+- `outputs/tls/tables/` — tree-level results, summaries and review queues;
+- `outputs/tls/vectors/`, `rasters/` and `models/` — reserved for later spatial and modelling outputs.
+
+Important taper-validation outputs include:
+
+- `tls_stem_taper_validation.csv`;
+- `tls_stem_taper_comparison_flags.csv`;
+- `tls_stem_taper_comparison_review.csv`;
+- `tls_taper_accuracy_by_height.csv`;
+- `tls_taper_accuracy_by_height_and_quality.csv`;
+- `tls_stem_taper_validation.png`.
+
+## Limitations
+
+- The workflow begins with already segmented individual-tree point clouds.
+- Height depends on complete capture of the tree base and top.
+- Stem fitting can be affected by occlusion, branches, irregular stems and incomplete circumference sampling.
+- Tracking and quality thresholds were developed and evaluated on this dataset and may require adjustment for other scanners, species, forest conditions and point densities.
+- Published comparison diameters are derived from the same TLS data and do not provide independent field validation.
+- Results marked `inspect` require visual review; failed fits should not be assigned a diameter automatically.
+- Biomass and woody volume are not estimated by this workflow. Those tasks require validated allometry or a separate quantitative structure model.
+
+## Methodological basis
+
+The workflow uses established TLS measurement ideas—horizontal stem sections, robust circle fitting, sequential stem tracking and geometric quality checks—combined in a project-specific prototype. It is not an implementation of TreeQSM or a claim of universal performance.
+
+Bornand et al. evaluated reconstructive and allometric approaches for individual-tree volume estimation and provide the source data used here. The associated published stem measurements were derived through a separate TLS-processing workflow, so differences between the two methods should be investigated rather than treated automatically as errors.
 
 ## References
 
-Bornand, A. (2023). *Individual tree TLS point clouds for tree volume estimation*. EnviDat.
-https://doi.org/10.16904/envidat.403
+Bornand, A. (2023). *Individual tree TLS point clouds for tree volume estimation*. EnviDat. <https://doi.org/10.16904/envidat.403>
 
-Terryn, L. et al. (2023). Analysing individual 3D tree structure using the R package `ITSMe`. *Methods in Ecology and Evolution*.
-https://doi.org/10.1111/2041-210X.14033
+Bornand, A., Rehush, N., Morsdorf, F., Thürig, E., & Abegg, M. (2023). Individual tree volume estimation with terrestrial laser scanning: Evaluating reconstructive and allometric approaches. *Agricultural and Forest Meteorology*, 341, 109654. <https://doi.org/10.1016/j.agrformet.2023.109654>
 
-Liang, X. et al. (2018). International benchmarking of terrestrial laser scanning approaches for forest inventories. *ISPRS Journal of Photogrammetry and Remote Sensing*, 144, 137–179.
-https://doi.org/10.1016/j.isprsjprs.2018.06.021
+Terryn, L. et al. (2023). Analysing individual 3D tree structure using the R package `ITSMe`. *Methods in Ecology and Evolution*. <https://doi.org/10.1111/2041-210X.14033>
+
+Liang, X. et al. (2018). International benchmarking of terrestrial laser scanning approaches for forest inventories. *ISPRS Journal of Photogrammetry and Remote Sensing*, 144, 137–179. <https://doi.org/10.1016/j.isprsjprs.2018.06.021>
