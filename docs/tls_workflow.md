@@ -160,6 +160,65 @@ The comparison queue is therefore complementary to geometric quality control: it
 
 ![TLS stem-taper validation](../outputs/tls/figures/tls_stem_taper_validation.png)
 
+## Crown-structure estimation and validation
+
+Crown dimensions were calculated from the complete horizontal projection of each already segmented individual-tree point cloud. The published `crown_base_height` was not used to remove lower points because this excluded genuine lower branches for some trees and reduced the estimated crown width.
+
+The workflow calculates:
+
+- the mean of the original X and Y extents;
+- an orientation-adjusted mean extent after principal component analysis;
+- the maximum distance between projected convex-hull vertices;
+- a preferred crown diameter calculated as the mean farthest distance associated with the convex-hull vertices;
+- the area of the complete two-dimensional convex hull.
+
+The preferred crown-diameter method was evaluated against the published `crown_dia2` measurements for all 59 trees.
+
+| Crown-width result | Value |
+| ------------------ | ----: |
+| Successful comparisons | 59 |
+| Mean error | 0.118 m |
+| Mean absolute error | 0.181 m |
+| Root mean square error | 0.241 m |
+| Correlation | 0.995 |
+| Differences within 0.5 m | 56 of 59 |
+| Differences within 1 m | 59 of 59 |
+
+The mean original X–Y extent had an MAE of 0.342 m and an RMSE of 0.434 m. The PCA-rotated mean extent had an MAE of 0.326 m and an RMSE of 0.412 m. The preferred convex-hull-derived diameter therefore provided the closest overall agreement with the published second crown-diameter variable.
+
+### Crown vertical extent
+
+The published variable `crown_length_r` followed the complete vertical extent of the TLS point cloud extremely closely:
+
+- mean error: 0.011 m;
+- mean absolute error: 0.024 m;
+- root mean square error: 0.067 m;
+- correlation: 0.9998.
+
+It is therefore treated as a TLS vertical-extent diagnostic in this project. It is not interpreted as field-derived crown length or as the distance from the field-measured crown base to the tree top.
+
+### Projected crown area
+
+The complete projected convex-hull area was retained as an experimental structural metric. It was systematically larger than the published `crown_area` variable, with a mean absolute difference of 34.49 m² and a mean absolute percentage difference of approximately 109.9%.
+
+This disagreement indicates that the two area variables are not methodologically equivalent. The application therefore reports this measurement explicitly as `projected_convex_hull_area_m2` and labels it experimental. It should not be interpreted as a validated reproduction of the published crown-area measurement.
+
+### Crown-processing assumptions
+
+The crown calculations assume that:
+
+- each input file contains one already segmented tree;
+- the complete tree projection represents the tree crown;
+- no major neighbouring-tree or off-tree artefacts remain in the file;
+- X, Y and Z coordinates are expressed in metres.
+
+The LAS withheld flag was also audited. Only `AD18` contained withheld points, and every point in that file carried the flag. Removing withheld points would therefore remove the entire tree. The flag was treated as a file-level export characteristic rather than a point-level filtering rule.
+
+The final crown-validation workflow is implemented in:
+
+```r
+source("scripts/tls/18_validate_full_crown_projection.R")
+
 ## Interactive TLS application
 
 The repository includes a local Shiny application for processing isolated `.las` or `.laz` trees. It provides summary measurements, geometric diagnostics, point-cloud projections, cross-section plots and downloadable CSV results.

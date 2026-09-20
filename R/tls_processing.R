@@ -599,87 +599,6 @@ process_tls_tree_visual <- function(
   )
 }
 
-# Batch processing ---------------------------------------------------------
-
-process_tls_batch <- function(file_paths, display_names = basename(file_paths),
-                              progress_callback = NULL) {
-
-  if (length(file_paths) == 0) {
-    stop("No TLS files were supplied.")
-  }
-
-  if (length(display_names) != length(file_paths)) {
-    stop("File paths and display names must have the same length.")
-  }
-
-  results <- vector("list", length(file_paths))
-
-  for (i in seq_along(file_paths)) {
-    if (is.function(progress_callback)) {
-      progress_callback(i, length(file_paths), display_names[i])
-    }
-
-    result <- process_tls_tree(file_paths[i])
-    result$file_name <- display_names[i]
-
-    result$diameter_2m_cm <- NA_real_
-    result$diameter_4m_cm <- NA_real_
-    result$diameter_6m_cm <- NA_real_
-    result$mean_taper_cm_per_m <- NA_real_
-    result$linear_taper_cm_per_m <- NA_real_
-    result$lower_stem_displacement_m <- NA_real_
-    result$lower_stem_lean_degrees <- NA_real_
-    result$taper_quality_flag <- "failed"
-    result$taper_error_message <- NA_character_
-
-    if (result$processing_status == "success") {
-      taper_result <- tryCatch(
-        estimate_stem_taper(file_paths[i]),
-        error = function(e) e
-      )
-
-      if (inherits(taper_result, "error")) {
-        result$taper_error_message <- conditionMessage(taper_result)
-      } else {
-        taper_table <- taper_result$taper_table
-        taper_summary <- taper_result$summary
-
-        diameter_at <- function(height) {
-          row <- which(abs(taper_table$height_m - height) < 0.001)
-          if (length(row) == 0) {
-            return(NA_real_)
-          }
-          taper_table$estimated_diameter_cm[row[1]]
-        }
-
-        result$diameter_2m_cm <- diameter_at(2)
-        result$diameter_4m_cm <- diameter_at(4)
-        result$diameter_6m_cm <- diameter_at(6)
-        result$mean_taper_cm_per_m <- taper_summary$mean_taper_cm_per_m
-        result$linear_taper_cm_per_m <- taper_summary$linear_taper_cm_per_m
-        result$lower_stem_displacement_m <-
-          taper_summary$lower_stem_displacement_m
-        result$lower_stem_lean_degrees <-
-          taper_summary$lower_stem_lean_degrees
-
-        if (all(taper_table$quality_flag == "acceptable")) {
-          result$taper_quality_flag <- "acceptable"
-        } else if (any(taper_table$quality_flag == "failed")) {
-          result$taper_quality_flag <- "incomplete"
-        } else {
-          result$taper_quality_flag <- "inspect"
-        }
-      }
-    }
-
-    results[[i]] <- result
-  }
-
-  batch_results <- do.call(rbind, results)
-  row.names(batch_results) <- NULL
-  batch_results
-}
-
 # Lower-stem taper ---------------------------------------------------------
 
 estimate_stem_taper <- function(
@@ -690,14 +609,18 @@ estimate_stem_taper <- function(
     radial_tolerance_m = 0.08
 ) {
 
-  measurement_heights <- sort(unique(measurement_heights))
+  measurement_heights <- sort(
+    unique(measurement_heights)
+  )
 
   if (
     length(measurement_heights) == 0 ||
     any(!is.finite(measurement_heights)) ||
     any(measurement_heights < 1.3)
   ) {
-    stop("Measurement heights must be finite and at least 1.3 m.")
+    stop(
+      "Measurement heights must be finite and at least 1.3 m."
+    )
   }
 
   tls_tree <- lidR::readLAS(
@@ -709,15 +632,40 @@ estimate_stem_taper <- function(
     stop("The point cloud is empty.")
   }
 
-  points <- as.data.frame(tls_tree@data)[
+  points <- as.data.frame(
+    tls_tree@data
+  )[
     ,
     c("X", "Y", "Z")
   ]
 
-  tree_base_z <- min(points$Z, na.rm = TRUE)
-  points$height_above_base_m <- points$Z - tree_base_z
+  finite_coordinates <-
+    is.finite(points$X) &
+    is.finite(points$Y) &
+    is.finite(points$Z)
 
-  dbh_fit <- estimate_tree_dbh(file_path)
+  points <- points[
+    finite_coordinates,
+  ]
+
+  if (nrow(points) == 0) {
+    stop(
+      "The point cloud does not contain finite XYZ coordinates."
+    )
+  }
+
+  tree_base_z <- min(
+    points$Z,
+    na.rm = TRUE
+  )
+
+  points$height_above_base_m <-
+    points$Z - tree_base_z
+
+  dbh_fit <- estimate_tree_dbh(
+    file_path
+  )
+
   dbh_fit$height_m <- 1.3
   dbh_fit$tracking_status <- "accepted"
 
@@ -733,21 +681,41 @@ estimate_stem_taper <- function(
     "tracking_status"
   )
 
-  tracking_results <- dbh_fit[, tracking_columns]
-  current_fit <- tracking_results
+  tracking_results <-
+    dbh_fit[
+      ,
+      tracking_columns,
+      drop = FALSE
+    ]
 
-  maximum_height <- max(measurement_heights)
-  tracking_heights <- seq(
-    1.3 + tracking_step_m,
-    maximum_height,
-    by = tracking_step_m
+  current_fit <-
+    tracking_results[
+      1,
+      ,
+      drop = FALSE
+    ]
+
+  maximum_height <- max(
+    measurement_heights
   )
+
+  if (maximum_height > 1.3) {
+    tracking_heights <- seq(
+      1.3 + tracking_step_m,
+      maximum_height,
+      by = tracking_step_m
+    )
+  } else {
+    tracking_heights <- numeric(0)
+  }
 
   for (height in tracking_heights) {
 
     height_slice <- points[
-      points$height_above_base_m >= height - slice_half_width_m &
-        points$height_above_base_m <= height + slice_half_width_m,
+      points$height_above_base_m >=
+        height - slice_half_width_m &
+        points$height_above_base_m <=
+        height + slice_half_width_m,
     ]
 
     if (nrow(height_slice) < 30) {
@@ -755,13 +723,20 @@ estimate_stem_taper <- function(
     }
 
     distance_from_previous_centre <- sqrt(
-      (height_slice$X - current_fit$centre_x)^2 +
-        (height_slice$Y - current_fit$centre_y)^2
+      (
+        height_slice$X -
+          current_fit$centre_x
+      )^2 +
+        (
+          height_slice$Y -
+            current_fit$centre_y
+        )^2
     )
 
     stem_candidates <- height_slice[
       abs(
-        distance_from_previous_centre - current_fit$radius_m
+        distance_from_previous_centre -
+          current_fit$radius_m
       ) <= radial_tolerance_m,
     ]
 
@@ -770,7 +745,9 @@ estimate_stem_taper <- function(
     }
 
     new_fit <- tryCatch(
-      fit_circle_rlm(stem_candidates),
+      fit_circle_rlm(
+        stem_candidates
+      ),
       error = function(e) NULL
     )
 
@@ -779,12 +756,19 @@ estimate_stem_taper <- function(
     }
 
     centre_shift <- sqrt(
-      (new_fit$centre_x - current_fit$centre_x)^2 +
-        (new_fit$centre_y - current_fit$centre_y)^2
+      (
+        new_fit$centre_x -
+          current_fit$centre_x
+      )^2 +
+        (
+          new_fit$centre_y -
+            current_fit$centre_y
+        )^2
     )
 
     radius_change <- abs(
-      new_fit$radius_m - current_fit$radius_m
+      new_fit$radius_m -
+        current_fit$radius_m
     )
 
     plausible_fit <-
@@ -797,9 +781,17 @@ estimate_stem_taper <- function(
       next
     }
 
-    new_fit$height_m <- round(height, 2)
-    new_fit$tracking_status <- "accepted"
-    new_fit <- new_fit[, tracking_columns]
+    new_fit$height_m <-
+      round(height, 2)
+
+    new_fit$tracking_status <-
+      "accepted"
+
+    new_fit <- new_fit[
+      ,
+      tracking_columns,
+      drop = FALSE
+    ]
 
     tracking_results <- rbind(
       tracking_results,
@@ -811,28 +803,40 @@ estimate_stem_taper <- function(
 
   target_results <- lapply(
     measurement_heights,
+
     function(target_height) {
 
       matching_row <- which(
-        abs(tracking_results$height_m - target_height) < 0.001
+        abs(
+          tracking_results$height_m -
+            target_height
+        ) < 0.001
       )
 
       if (length(matching_row) == 0) {
-        return(data.frame(
-          height_m = target_height,
-          centre_x = NA_real_,
-          centre_y = NA_real_,
-          radius_m = NA_real_,
-          estimated_diameter_cm = NA_real_,
-          points_used = NA_integer_,
-          circle_rmse_mm = NA_real_,
-          circumference_completeness_percent = NA_real_,
-          quality_flag = "failed",
-          stringsAsFactors = FALSE
-        ))
+        return(
+          data.frame(
+            height_m = target_height,
+            centre_x = NA_real_,
+            centre_y = NA_real_,
+            radius_m = NA_real_,
+            estimated_diameter_cm =
+              NA_real_,
+            points_used = NA_integer_,
+            circle_rmse_mm = NA_real_,
+            circumference_completeness_percent =
+              NA_real_,
+            quality_flag = "failed",
+            stringsAsFactors = FALSE
+          )
+        )
       }
 
-      fit <- tracking_results[matching_row[1], ]
+      fit <- tracking_results[
+        matching_row[1],
+        ,
+        drop = FALSE
+      ]
 
       quality_flag <- ifelse(
         fit$circle_rmse_mm <= 20 &&
@@ -847,77 +851,143 @@ estimate_stem_taper <- function(
         centre_x = fit$centre_x,
         centre_y = fit$centre_y,
         radius_m = fit$radius_m,
-        estimated_diameter_cm = fit$radius_m * 200,
-        points_used = fit$retained_points,
-        circle_rmse_mm = fit$circle_rmse_mm,
+        estimated_diameter_cm =
+          fit$radius_m * 200,
+        points_used =
+          fit$retained_points,
+        circle_rmse_mm =
+          fit$circle_rmse_mm,
         circumference_completeness_percent =
           fit$circumference_completeness_percent,
-        quality_flag = quality_flag,
+        quality_flag =
+          quality_flag,
         stringsAsFactors = FALSE
       )
     }
   )
 
-  taper_table <- do.call(rbind, target_results)
+  taper_table <- do.call(
+    rbind,
+    target_results
+  )
+
   row.names(taper_table) <- NULL
 
-  valid_rows <- is.finite(taper_table$estimated_diameter_cm)
-  valid_taper <- taper_table[valid_rows, ]
+  valid_rows <- is.finite(
+    taper_table$estimated_diameter_cm
+  )
+
+  valid_taper <- taper_table[
+    valid_rows,
+    ,
+    drop = FALSE
+  ]
 
   if (nrow(valid_taper) >= 2) {
+
     taper_model <- lm(
       estimated_diameter_cm ~ height_m,
       data = valid_taper
     )
 
     linear_taper_cm_per_m <-
-      -unname(coef(taper_model)["height_m"])
+      -unname(
+        coef(taper_model)["height_m"]
+      )
 
-    first_row <- valid_taper[1, ]
-    last_row <- valid_taper[nrow(valid_taper), ]
+    first_row <- valid_taper[
+      1,
+      ,
+      drop = FALSE
+    ]
 
-    mean_taper_cm_per_m <-
-      (first_row$estimated_diameter_cm -
-        last_row$estimated_diameter_cm) /
-      (last_row$height_m - first_row$height_m)
-
-    stem_displacement_m <- sqrt(
-      (last_row$centre_x - first_row$centre_x)^2 +
-        (last_row$centre_y - first_row$centre_y)^2
-    )
+    last_row <- valid_taper[
+      nrow(valid_taper),
+      ,
+      drop = FALSE
+    ]
 
     measured_vertical_span_m <-
-      last_row$height_m - first_row$height_m
+      last_row$height_m -
+      first_row$height_m
+
+    mean_taper_cm_per_m <-
+      (
+        first_row$estimated_diameter_cm -
+          last_row$estimated_diameter_cm
+      ) /
+      measured_vertical_span_m
+
+    lower_stem_displacement_m <- sqrt(
+      (
+        last_row$centre_x -
+          first_row$centre_x
+      )^2 +
+        (
+          last_row$centre_y -
+            first_row$centre_y
+        )^2
+    )
 
     lower_stem_lean_degrees <-
-      atan2(stem_displacement_m, measured_vertical_span_m) *
+      atan2(
+        lower_stem_displacement_m,
+        measured_vertical_span_m
+      ) *
       180 / pi
+
   } else {
+
     linear_taper_cm_per_m <- NA_real_
     mean_taper_cm_per_m <- NA_real_
-    stem_displacement_m <- NA_real_
-    lower_stem_lean_degrees <- NA_real_
+    lower_stem_displacement_m <- NA_real_
     measured_vertical_span_m <- NA_real_
+    lower_stem_lean_degrees <- NA_real_
   }
 
   summary <- data.frame(
-    file_name = basename(file_path),
-    requested_measurements = length(measurement_heights),
-    successful_measurements = sum(valid_rows),
-    acceptable_measurements = sum(
-      taper_table$quality_flag == "acceptable"
-    ),
-    measurements_requiring_inspection = sum(
-      taper_table$quality_flag == "inspect"
-    ),
-    failed_measurements = sum(
-      taper_table$quality_flag == "failed"
-    ),
-    mean_taper_cm_per_m = mean_taper_cm_per_m,
-    linear_taper_cm_per_m = linear_taper_cm_per_m,
-    lower_stem_displacement_m = stem_displacement_m,
-    measured_vertical_span_m = measured_vertical_span_m,
-    lower_stem_lean_degrees = lower_stem_lean_degrees,
+    file_name =
+      basename(file_path),
+
+    requested_measurements =
+      length(measurement_heights),
+
+    successful_measurements =
+      sum(valid_rows),
+
+    acceptable_measurements =
+      sum(
+        taper_table$quality_flag ==
+          "acceptable"
+      ),
+
+    measurements_requiring_inspection =
+      sum(
+        taper_table$quality_flag ==
+          "inspect"
+      ),
+
+    failed_measurements =
+      sum(
+        taper_table$quality_flag ==
+          "failed"
+      ),
+
+    mean_taper_cm_per_m =
+      mean_taper_cm_per_m,
+
+    linear_taper_cm_per_m =
+      linear_taper_cm_per_m,
+
+    lower_stem_displacement_m =
+      lower_stem_displacement_m,
+
+    measured_vertical_span_m =
+      measured_vertical_span_m,
+
+    lower_stem_lean_degrees =
+      lower_stem_lean_degrees,
+
     stringsAsFactors = FALSE
   )
 
@@ -925,5 +995,454 @@ estimate_stem_taper <- function(
     taper_table = taper_table,
     tracking_results = tracking_results,
     summary = summary
+  )
+}
+
+# Batch processing ---------------------------------------------------------
+
+process_tls_batch <- function(
+    file_paths,
+    display_names = basename(file_paths),
+    progress_callback = NULL
+) {
+
+  if (length(file_paths) == 0) {
+    stop("No TLS files were supplied.")
+  }
+
+  if (
+    length(display_names) !=
+    length(file_paths)
+  ) {
+    stop(
+      "File paths and display names must have the same length."
+    )
+  }
+
+  results <- vector(
+    "list",
+    length(file_paths)
+  )
+
+  for (i in seq_along(file_paths)) {
+
+    if (is.function(progress_callback)) {
+      progress_callback(
+        i,
+        length(file_paths),
+        display_names[i]
+      )
+    }
+
+    result <- process_tls_tree(
+      file_paths[i]
+    )
+
+    result$file_name <-
+      display_names[i]
+
+    result$diameter_2m_cm <-
+      NA_real_
+
+    result$diameter_4m_cm <-
+      NA_real_
+
+    result$diameter_6m_cm <-
+      NA_real_
+
+    result$mean_taper_cm_per_m <-
+      NA_real_
+
+    result$linear_taper_cm_per_m <-
+      NA_real_
+
+    result$lower_stem_displacement_m <-
+      NA_real_
+
+    result$measured_vertical_span_m <-
+      NA_real_
+
+    result$lower_stem_lean_degrees <-
+      NA_real_
+
+    result$taper_successful_measurements <-
+      NA_integer_
+
+    result$taper_requested_measurements <-
+      NA_integer_
+
+    result$taper_quality_flag <-
+      "failed"
+
+    result$taper_error_message <-
+      NA_character_
+
+    if (
+      result$processing_status ==
+      "success"
+    ) {
+
+      taper_result <- tryCatch(
+        estimate_stem_taper(
+          file_paths[i]
+        ),
+        error = function(e) e
+      )
+
+      if (
+        inherits(
+          taper_result,
+          "error"
+        )
+      ) {
+
+        result$taper_error_message <-
+          conditionMessage(
+            taper_result
+          )
+
+      } else {
+
+        taper_table <-
+          taper_result$taper_table
+
+        taper_summary <-
+          taper_result$summary
+
+        diameter_at <- function(height) {
+
+          matching_row <- which(
+            abs(
+              taper_table$height_m -
+                height
+            ) < 0.001
+          )
+
+          if (
+            length(matching_row) == 0
+          ) {
+            return(NA_real_)
+          }
+
+          taper_table$
+            estimated_diameter_cm[
+              matching_row[1]
+            ]
+        }
+
+        result$diameter_2m_cm <-
+          diameter_at(2)
+
+        result$diameter_4m_cm <-
+          diameter_at(4)
+
+        result$diameter_6m_cm <-
+          diameter_at(6)
+
+        result$mean_taper_cm_per_m <-
+          taper_summary$
+          mean_taper_cm_per_m
+
+        result$linear_taper_cm_per_m <-
+          taper_summary$
+          linear_taper_cm_per_m
+
+        result$lower_stem_displacement_m <-
+          taper_summary$
+          lower_stem_displacement_m
+
+        result$measured_vertical_span_m <-
+          taper_summary$
+          measured_vertical_span_m
+
+        result$lower_stem_lean_degrees <-
+          taper_summary$
+          lower_stem_lean_degrees
+
+        result$taper_successful_measurements <-
+          taper_summary$
+          successful_measurements
+
+        result$taper_requested_measurements <-
+          taper_summary$
+          requested_measurements
+
+        if (
+          all(
+            taper_table$quality_flag ==
+            "acceptable"
+          )
+        ) {
+
+          result$taper_quality_flag <-
+            "acceptable"
+
+        } else if (
+          any(
+            taper_table$quality_flag ==
+            "failed"
+          ) &&
+          any(
+            taper_table$quality_flag %in%
+            c(
+              "acceptable",
+              "inspect"
+            )
+          )
+        ) {
+
+          result$taper_quality_flag <-
+            "incomplete"
+
+        } else if (
+          all(
+            taper_table$quality_flag ==
+            "failed"
+          )
+        ) {
+
+          result$taper_quality_flag <-
+            "failed"
+
+        } else {
+
+          result$taper_quality_flag <-
+            "inspect"
+        }
+      }
+    }
+
+    results[[i]] <- result
+  }
+
+  batch_results <- do.call(
+    rbind,
+    results
+  )
+
+  row.names(batch_results) <- NULL
+
+  batch_results
+}
+
+# Crown structure ---------------------------------------------------------
+
+estimate_crown_structure <- function(file_path) {
+
+  tls_tree <- lidR::readLAS(
+    file_path,
+    select = "xyz"
+  )
+
+  if (lidR::is.empty(tls_tree)) {
+    stop("The point cloud is empty.")
+  }
+
+  points <- as.data.frame(
+    tls_tree@data
+  )[
+    ,
+    c("X", "Y", "Z")
+  ]
+
+  finite_coordinates <-
+    is.finite(points$X) &
+    is.finite(points$Y) &
+    is.finite(points$Z)
+
+  points <- points[
+    finite_coordinates,
+  ]
+
+  if (nrow(points) < 3) {
+    stop(
+      paste(
+        "Fewer than three finite points are",
+        "available for crown processing."
+      )
+    )
+  }
+
+  # Crown diameter 1 from the original X-Y extents
+
+  x_extent_m <- diff(
+    range(
+      points$X,
+      na.rm = TRUE
+    )
+  )
+
+  y_extent_m <- diff(
+    range(
+      points$Y,
+      na.rm = TRUE
+    )
+  )
+
+  crown_diameter_1_xy_m <- mean(
+    c(
+      x_extent_m,
+      y_extent_m
+    )
+  )
+
+  # Crown diameter 1 after PCA rotation
+
+  centred_x <-
+    points$X - mean(points$X)
+
+  centred_y <-
+    points$Y - mean(points$Y)
+
+  variance_x <- stats::var(
+    centred_x
+  )
+
+  variance_y <- stats::var(
+    centred_y
+  )
+
+  covariance_xy <- stats::cov(
+    centred_x,
+    centred_y
+  )
+
+  rotation_angle <- 0.5 * atan2(
+    2 * covariance_xy,
+    variance_x - variance_y
+  )
+
+  rotated_axis_1 <-
+    centred_x * cos(rotation_angle) +
+    centred_y * sin(rotation_angle)
+
+  rotated_axis_2 <-
+    -centred_x * sin(rotation_angle) +
+    centred_y * cos(rotation_angle)
+
+  rotated_extent_1_m <- diff(
+    range(
+      rotated_axis_1,
+      na.rm = TRUE
+    )
+  )
+
+  rotated_extent_2_m <- diff(
+    range(
+      rotated_axis_2,
+      na.rm = TRUE
+    )
+  )
+
+  crown_diameter_1_pca_m <- mean(
+    c(
+      rotated_extent_1_m,
+      rotated_extent_2_m
+    )
+  )
+
+  # Complete projected convex hull
+
+  hull_indices <- chull(
+    points$X,
+    points$Y
+  )
+
+  hull_points <- points[
+    hull_indices,
+    c("X", "Y")
+  ]
+
+  if (nrow(hull_points) < 3) {
+    stop(
+      paste(
+        "A valid projected crown hull",
+        "could not be created."
+      )
+    )
+  }
+
+  # Crown diameter 2:
+  # mean farthest distance from each hull vertex
+
+  hull_distance_matrix <- as.matrix(
+    stats::dist(
+      hull_points[, c("X", "Y")]
+    )
+  )
+
+  farthest_distance_by_vertex <- apply(
+    hull_distance_matrix,
+    1,
+    max
+  )
+
+  crown_diameter_2_m <- mean(
+    farthest_distance_by_vertex,
+    na.rm = TRUE
+  )
+
+  maximum_crown_span_m <- max(
+    hull_distance_matrix,
+    na.rm = TRUE
+  )
+
+  # Projected convex-hull area
+
+  next_vertex <- c(
+    2:nrow(hull_points),
+    1
+  )
+
+  projected_convex_hull_area_m2 <- abs(
+    sum(
+      hull_points$X *
+        hull_points$Y[next_vertex] -
+        hull_points$Y *
+        hull_points$X[next_vertex]
+    )
+  ) / 2
+
+  # Close the hull for plotting
+
+  closed_hull <- rbind(
+    hull_points,
+    hull_points[1, ]
+  )
+
+  crown_summary <- data.frame(
+    file_name = basename(file_path),
+    crown_point_count = nrow(points),
+    crown_hull_vertex_count =
+      nrow(hull_points),
+    crown_diameter_1_xy_m =
+      crown_diameter_1_xy_m,
+    crown_diameter_1_pca_m =
+      crown_diameter_1_pca_m,
+    crown_diameter_2_m =
+      crown_diameter_2_m,
+    estimated_crown_diameter_m =
+      crown_diameter_2_m,
+    maximum_crown_span_m =
+      maximum_crown_span_m,
+    projected_convex_hull_area_m2 =
+      projected_convex_hull_area_m2,
+    crown_method =
+      "complete-tree XY convex hull",
+    crown_area_status =
+      "experimental",
+    crown_processing_status =
+      "success",
+    crown_error_message =
+      NA_character_,
+    stringsAsFactors = FALSE
+  )
+
+  list(
+    summary = crown_summary,
+    hull_points = hull_points,
+    closed_hull = closed_hull,
+    farthest_distance_by_vertex =
+      farthest_distance_by_vertex
   )
 }

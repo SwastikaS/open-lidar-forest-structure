@@ -25,25 +25,28 @@ The project combines reproducible analysis scripts, processed outputs, validatio
 
 Additional figures, tables and spatial files are available in the [outputs directory](outputs/README.md).
 
-## Interactive TLS prototype
+## Interactive TLS Tree Structure Analyser
 
 The local Shiny application processes isolated-tree `.las` or `.laz` point clouds and reports:
 
 - tree height;
 - diameter at breast height;
 - basal area;
-- stem diameters at selected heights;
-- taper and lower-stem structure;
-- circle-fitting diagnostics;
+- stem diameters at 2, 4 and 6 m;
+- lower-stem taper, displacement and lean;
+- preferred crown diameter;
+- alternative crown-width measurements;
+- maximum crown span;
+- experimental projected convex-hull area;
+- circle-fitting and geometric quality diagnostics;
 - an `acceptable`, `inspect` or `failed` quality classification.
+
+The application supports both single-tree and batch processing. Individual processed trees can be selected for visual inspection of the point cloud, fitted DBH circle, lower-stem taper and projected crown hull.
 
 Launch the application from the project root:
 
 ```r
 shiny::runApp("app")
-```
-
-See the [terrestrial LiDAR workflow](docs/tls_workflow.md) for input requirements, validation results and limitations.
 
 ## Repository structure
 
@@ -122,6 +125,8 @@ The airborne module demonstrates canopy-height modelling, treetop detection, cro
 The TLS module calculated height for all 59 trees and DBH for 53 trees. Thirty-eight DBH estimates passed automatic quality control; within that group, mean absolute difference from the published TLS-derived DBH was 0.52 cm and root mean square difference was 0.78 cm.
 
 Stem diameters were also estimated at 1.3, 2, 4 and 6 m. Among measurements passing geometric quality control, mean absolute differences from the published TLS-derived values ranged from 0.50 to 0.72 cm across the four heights. Eight comparisons differed by at least 5 cm and were placed in a separate investigation queue.
+
+Crown width was estimated from the complete horizontal projection of each segmented tree. The preferred convex-hull-derived crown diameter was calculated successfully for all 59 trees. Compared with the published second crown-diameter variable, it had a mean absolute difference of 0.181 m and a root mean square difference of 0.241 m; all 59 estimates were within 1 m. Projected convex-hull area is reported separately as an experimental structural metric because it did not reproduce the published crown-area definition.
 
 These comparisons use measurements derived from the same TLS dataset and are not independent field validation. Results marked `inspect` require visual review, while failed measurements are not assigned a diameter.
 
